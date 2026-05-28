@@ -1,0 +1,6 @@
+{
+  "name": "Remix: Tsubuyaki Processing Viewer",
+  "description": "A viewer for a compact p5.js art piece (Tsubuyaki Processing).",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
