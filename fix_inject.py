@@ -1,4 +1,13 @@
 import re
+
+# Recover original file by removing the broken injection
+with open("src/App.tsx", "r") as f:
+    content = f.read()
+
+# I need to find `metadata: { label: string; value: string }[  ,{` and fix it.
+content = content.replace("metadata: { label: string; value: string }[  ,{\n    id: \"algo-0x0c\",", "metadata: { label: string; value: string }[];\n/* INJECT_MARKER */")
+
+# Remove the rest of the injected code
 import json
 
 with open("mandelbulb.html", "r") as f:
@@ -40,37 +49,6 @@ float map(vec3 pos) {
 }"""
 }
 
-with open("src/App.tsx", "r") as f:
-    content = f.read()
-
-# We'll inject the new algo right before the closing bracket of the artworks array
-# To do this safely, we search for the last } in the artworks array
-# A good marker is  `  }\n];` or similar. Let's find the `];`
-
-parts = content.split("];\n")
-if len(parts) >= 2:
-    algo_str = json.dumps(new_algo, indent=2)
-    # The json.dumps escapes newlines and quotes inside strings, which is what we need for the array.
-    # But for the `equation` we need double slashes for React if it was raw, but since we inject it as a parsed JSON string it will have `\\\\` which is correct for JS string literals.
-    
-    # We must format it like the other JS objects
-    algo_str_js = "  ,{\n"
-    algo_str_js += f'    id: "{new_algo["id"]}",\n'
-    algo_str_js += f'    title: "{new_algo["title"]}",\n'
-    algo_str_js += f'    subTitle: "{new_algo["subTitle"]}",\n'
-    algo_str_js += f'    description: "{new_algo["description"]}",\n'
-    algo_str_js += f'    equation: "{new_algo["equation"]}",\n'
-    algo_str_js += f'    type: "{new_algo["type"]}",\n'
-    # For html content, we use backticks to avoid escaping hell
-    html_safe = new_algo["htmlContent"].replace("`", "\\`").replace("${", "\\${")
-    algo_str_js += f'    htmlContent: `{html_safe}`,\n'
-    algo_str_js += f'    code: `{new_algo["code"]}`,\n'
-    algo_str_js += f'    metadata: {json.dumps(new_algo["metadata"], indent=6)}\n  }}\n'
-    
-    new_content = parts[0] + algo_str_js + "];\n" + "];\n".join(parts[1:])
-    with open("src/App.tsx", "w") as f:
-        f.write(new_content)
-    print("Injected algo")
-else:
-    print("Could not find array end")
-
+# we must rebuild the file properly
+import subprocess
+subprocess.run("git checkout src/App.tsx", shell=True)
