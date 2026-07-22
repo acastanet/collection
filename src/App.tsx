@@ -986,29 +986,6 @@ dv = Db * lapl.g + uv_reaction - (feed + kill) * v;`,
     ]
   },
   {
-    id: "algo-0x0a",
-    title: "ALGO 0x0A",
-    subTitle: "Champ de Flux Vectoriel",
-    description: "Un système de particules à haute densité traçant les gradients d'un champ de bruit simplex 3D multi-octaves. Des milliers d'agents autonomes échantillonnent le champ de vecteurs continu pour déterminer leurs caps. Leurs traînées s'accumulent au fil du temps pour révéler les contours topologiques invisibles, produisant des structures fluides organiques similaires à des cheveux.",
-    equation: "\\begin{aligned} \\theta &= \\text{noise3D}(x, y, t) \\cdot 4\\pi \\\\ v_x &= \\cos(\\theta) \\cdot s \\\\ v_y &= \\sin(\\theta) \\cdot s \\end{aligned}",
-    type: "CANVAS 2D",
-    code: "const angle = noise3D(p.x * scale, p.y * scale, time) * Math.PI * 4;\nconst vx = Math.cos(angle) * speed;\nconst vy = Math.sin(angle) * speed;\np.x += vx; p.y += vy;\nif(outOfBounds) p = randomPosition();",
-    htmlContent: "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Vector Flow Field</title>\n  <style>\n    body {  margin: 0; background-color: #030303; overflow: hidden;  display: flex; justify-content: center; align-items: center; overflow: hidden; touch-action: none; }\n    \n   canvas { width: 100vmin !important; height: 100vmin !important; object-fit: contain; box-shadow: 0 0 20px rgba(0,0,0,0.8); border-radius: 4px; }</style>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js\"></script>\n</head>\n<body>\n  <canvas id=\"c\"></canvas>\n  <script>\n    const canvas = document.getElementById('c');\n    const ctx = canvas.getContext('2d', { alpha: false });\n    \n    let width, height;\n    function resize() {\n      width = canvas.width = window.innerWidth * window.devicePixelRatio;\n      height = canvas.height = window.innerHeight * window.devicePixelRatio;\n    }\n    window.addEventListener('resize', resize);\n    resize();\n\n    const simplex = new SimplexNoise();\n    const numParticles = window.innerWidth > 800 ? 6000 : 3000;\n    const particles = [];\n    \n    for(let i=0; i<numParticles; i++) {\n        particles.push({\n            x: Math.random() * width,\n            y: Math.random() * height,\n            vx: 0, vy: 0,\n            hue: Math.random() * 60 - 20\n        });\n    }\n\n    ctx.fillStyle = '#030303';\n    ctx.fillRect(0, 0, width, height);\n\n    let zOff = 0;\n\n    function animate() {\n        ctx.fillStyle = 'rgba(3, 3, 3, 0.05)';\n        ctx.fillRect(0, 0, width, height);\n        \n        const scale = 0.0015;\n        const speed = 2.0;\n        zOff += 0.002;\n\n        for(let i=0; i<particles.length; i++) {\n            let p = particles[i];\n            \n            let angle = simplex.noise3D(p.x * scale, p.y * scale, zOff) * Math.PI * 4;\n            \n            p.vx = Math.cos(angle) * speed;\n            p.vy = Math.sin(angle) * speed;\n            \n            ctx.beginPath();\n            ctx.moveTo(p.x, p.y);\n            \n            p.x += p.vx;\n            p.y += p.vy;\n            \n            ctx.lineTo(p.x, p.y);\n            \n            let hue = (angle / (Math.PI * 4)) * 120 + 200; // Blue/cyan/purple\n            ctx.strokeStyle = `hsla(${hue}, 80%, 60%, 0.4)`;\n            ctx.lineWidth = 1.5;\n            ctx.stroke();\n            \n            // Wrap edges\n            if (p.x < 0) p.x = width;\n            if (p.x > width) p.x = 0;\n            if (p.y < 0) p.y = height;\n            if (p.y > height) p.y = 0;\n        }\n        \n        requestAnimationFrame(animate);\n    }\n    animate();\n  </script>\n</body>\n</html>",
-    metadata: [
-        {
-            "label": "Algorithme",
-            "value": "Flux Bruit Simplex"
-        },
-        {
-            "label": "Entités",
-            "value": "6 000 Agents Autonomes"
-        },
-        {
-            "label": "Topologie",
-            "value": "Espace Torique"
-        }
-    ]
-  }  ,{
     id: "algo-0x0b",
     title: "ALGO 0x0B",
     subTitle: "Attracteur Étrange",
@@ -1262,6 +1239,955 @@ void main() {
         { label: "Espace", value: "Coordonnées Sphériques" },
         { label: "Complexité", value: "Itérative Infinie" }
     ]
+  },
+  {
+    id: "algo-0x0d",
+    title: "ALGO 0x0D",
+    subTitle: "Flux Paramétrique",
+    description: "Simulation d'un champ scalaire chaotique calculé directement sur le GPU via un shader WebGL. Le système résout des équations de flux pour générer des faisceaux lumineux organiques qui évoluent et se tordent en fonction d'un bruit fractal complexe et de fonctions trigonométriques.",
+    equation: "\\begin{aligned} p_{new} &= p - \\nabla(\\text{fbm}(p \\cdot p_2 + t)) \\cdot p_5 \\\\ c_{total} &= \\sum_{i=0}^{32} e^{-d \\cdot p_7} \\cdot (1 - \\frac{i}{p_4}) \\end{aligned}",
+    type: "P5.JS SHADER",
+    code: `const P1_Value = 0.19; // 時間が進む速さを設定します。
+const P2_Value = 0.05; // 流れを作るノイズの大きさを設定します。
+const P3_Value = 0.10; // 流れの方向が回転する強さを設定します。
+const P4_Value = 30.0; // 流れをたどる回数を設定します。
+const P5_Value = 0.05; // 1回ごとに流れを進む距離を設定します。
+const P6_Value = 40.0; // しま模様の細かさを設定します。
+let P7_Value = 50.0; // 線の鋭さを保存する変数を用意します。
+const P7_Min = 6.0; // 線の鋭さの最小値を設定します。
+const P7_Max = 90.0; // 線の鋭さの最大値を90に設定します。
+const P7_Speed = 0.2; // サイン波が変化する速さを設定します。
+const P8_Value = 15.0; // 全体の明るさを設定します。
+let shaderProgram; // 作成したシェーダーを保存する変数を用意します。
+
+const vShader = \`precision mediump float;
+attribute vec3 aPosition;
+attribute vec2 aTexCoord;
+varying vec2 vTexCoord;
+void main() {
+  vTexCoord = aTexCoord;
+  gl_Position = vec4(aPosition * 2.0 - 1.0, 1.0);
+}\`;
+
+const fShader = \`precision mediump float;
+#define PI 3.14159265359
+#define TAU 6.28318530718
+varying vec2 vTexCoord;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform float u_p1;
+uniform float u_p2;
+uniform float u_p3;
+uniform float u_p4;
+uniform float u_p5;
+uniform float u_p6;
+uniform float u_p7;
+uniform float u_p8;
+
+float hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+float noise21(vec2 p) {
+  vec2 integerPart = floor(p);
+  vec2 decimalPart = fract(p);
+  decimalPart = decimalPart * decimalPart * (3.0 - 2.0 * decimalPart);
+  float topLeft = hash21(integerPart);
+  float topRight = hash21(integerPart + vec2(1.0, 0.0));
+  float bottomLeft = hash21(integerPart + vec2(0.0, 1.0));
+  float bottomRight = hash21(integerPart + vec2(1.0, 1.0));
+  float topValue = mix(topLeft, topRight, decimalPart.x);
+  float bottomValue = mix(bottomLeft, bottomRight, decimalPart.x);
+  return mix(topValue, bottomValue, decimalPart.y);
+}
+
+float fbm(vec2 p) {
+  float value = 0.0;
+  float amplitude = 0.6;
+  mat2 rotation = mat2(0.1, -0.0, 0.0, 0.1);
+  for (int i = 0; i < 5; i++) {
+    value += noise21(p) * amplitude;
+    p = rotation * p * 2.01 + vec2(13.7, 9.2);
+    amplitude *= 0.5;
+  }
+  return value;
+}
+
+vec3 palette(float value) {
+  vec3 baseColor = vec3(0.5);
+  vec3 amplitude = vec3(0.5);
+  vec3 frequency = vec3(1.0);
+  vec3 phase = vec3(0.0, 0.18, 0.38);
+  return baseColor + amplitude * cos(TAU * (frequency * value + phase));
+}
+
+vec2 centeredCoordinate(vec2 uv) {
+  float aspectRatio = u_resolution.x / u_resolution.y;
+  return (uv - 0.5) * vec2(aspectRatio, 1.0);
+}
+
+vec2 flowDirection(vec2 p, float timeValue) {
+  float noiseValue = fbm(p * u_p2 + vec2(timeValue * 0.4, -timeValue * 0.25));
+  float angle = noiseValue * PI * u_p3;
+  angle += sin(p.x * 2.7 + timeValue) * 1.2;
+  angle += cos(p.y * 3.1 - timeValue * 0.8) * 1.1;
+  return vec2(cos(angle), sin(angle));
+}
+
+vec3 ribbonScene(vec2 uv) {
+  vec2 p = centeredCoordinate(uv);
+  float timeValue = u_time * u_p1;
+  vec2 tracedPosition = p;
+  float lineTotal = 0.0;
+  float glowTotal = 0.0;
+  for (int i = 0; i < 32; i++) {
+    float index = float(i);
+    if (index < u_p4) {
+      vec2 direction = flowDirection(tracedPosition, timeValue + index * 0.035);
+      tracedPosition -= direction * u_p5;
+      float stripePosition = tracedPosition.x * u_p6 + fbm(tracedPosition * 2.4) * 7.0;
+      stripePosition += sin(tracedPosition.y * 8.0 - timeValue * 1.4) * 1.5;
+      float stripeDistance = abs(sin(stripePosition));
+      float fade = 1.0 - index / max(u_p4, 1.0);
+      lineTotal += exp(-stripeDistance * u_p7) * fade;
+      glowTotal += exp(-stripeDistance * 7.0) * fade;
+    }
+  }
+  lineTotal /= max(u_p4 * 0.25, 1.0);
+  glowTotal /= max(u_p4 * 0.6, 1.0);
+  vec3 color = palette(fbm(tracedPosition * 2.0) + timeValue * 0.04);
+  color *= lineTotal * u_p8 + glowTotal * 0.8;
+  return color + vec3(0.0, 0.0, 0.0);
+}
+
+void main() {
+  vec2 uv = vTexCoord;
+  uv.y = 1.0 - uv.y;
+  vec3 finalColor = ribbonScene(uv);
+  finalColor = pow(max(finalColor, vec3(0.0)), vec3(0.95));
+  gl_FragColor = vec4(finalColor, 1.0);
+}\`;
+
+function setup() {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  pixelDensity(1);
+  shaderProgram = createShader(vShader, fShader);
+  noStroke();
+}
+
+function draw() {
+  const elapsedSeconds = millis() / 1000.0;
+  const sineValue = sin(elapsedSeconds * P7_Speed);
+  P7_Value = map(sineValue, -1, 1, P7_Min, P7_Max);
+  shader(shaderProgram);
+  shaderProgram.setUniform("u_resolution", [width, height]);
+  shaderProgram.setUniform("u_time", elapsedSeconds);
+  shaderProgram.setUniform("u_p1", P1_Value);
+  shaderProgram.setUniform("u_p2", P2_Value);
+  shaderProgram.setUniform("u_p3", P3_Value);
+  shaderProgram.setUniform("u_p4", P4_Value);
+  shaderProgram.setUniform("u_p5", P5_Value);
+  shaderProgram.setUniform("u_p6", P6_Value);
+  shaderProgram.setUniform("u_p7", P7_Value);
+  shaderProgram.setUniform("u_p8", P8_Value);
+  rect(-width / 2, -height / 2, width, height);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+`,
+    htmlContent: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ribbon Flow Shader</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+  <style>
+    body { margin: 0; padding: 0; background-color: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; min-height: 100vh; touch-action: none; }
+    canvas { width: 100vmin !important; height: 100vmin !important; object-fit: contain; box-shadow: 0 0 30px rgba(0,0,0,0.9); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <script>
+const P1_Value = 0.19; // 時間が進む速さを設定します。
+const P2_Value = 0.05; // 流れを作るノイズの大きさを設定します。
+const P3_Value = 0.10; // 流れの方向が回転する強さを設定します。
+const P4_Value = 30.0; // 流れをたどる回数を設定します。
+const P5_Value = 0.05; // 1回ごとに流れを進む距離を設定します。
+const P6_Value = 40.0; // しま模様の細かさを設定します。
+let P7_Value = 50.0; // 線の鋭さを保存する変数を用意します。
+const P7_Min = 6.0; // 線の鋭さの最小値を設定します。
+const P7_Max = 90.0; // 線の鋭さの最大値を90に設定します。
+const P7_Speed = 0.2; // サイン波が変化する速さを設定します。
+const P8_Value = 15.0; // 全体の明るさを設定します。
+let shaderProgram; // 作成したシェーダーを保存する変数を用意します。
+
+const vShader = \`precision mediump float;
+attribute vec3 aPosition;
+attribute vec2 aTexCoord;
+varying vec2 vTexCoord;
+void main() {
+  vTexCoord = aTexCoord;
+  gl_Position = vec4(aPosition * 2.0 - 1.0, 1.0);
+}\`;
+
+const fShader = \`precision mediump float;
+#define PI 3.14159265359
+#define TAU 6.28318530718
+varying vec2 vTexCoord;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform float u_p1;
+uniform float u_p2;
+uniform float u_p3;
+uniform float u_p4;
+uniform float u_p5;
+uniform float u_p6;
+uniform float u_p7;
+uniform float u_p8;
+
+float hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+float noise21(vec2 p) {
+  vec2 integerPart = floor(p);
+  vec2 decimalPart = fract(p);
+  decimalPart = decimalPart * decimalPart * (3.0 - 2.0 * decimalPart);
+  float topLeft = hash21(integerPart);
+  float topRight = hash21(integerPart + vec2(1.0, 0.0));
+  float bottomLeft = hash21(integerPart + vec2(0.0, 1.0));
+  float bottomRight = hash21(integerPart + vec2(1.0, 1.0));
+  float topValue = mix(topLeft, topRight, decimalPart.x);
+  float bottomValue = mix(bottomLeft, bottomRight, decimalPart.x);
+  return mix(topValue, bottomValue, decimalPart.y);
+}
+
+float fbm(vec2 p) {
+  float value = 0.0;
+  float amplitude = 0.6;
+  mat2 rotation = mat2(0.1, -0.0, 0.0, 0.1);
+  for (int i = 0; i < 5; i++) {
+    value += noise21(p) * amplitude;
+    p = rotation * p * 2.01 + vec2(13.7, 9.2);
+    amplitude *= 0.5;
+  }
+  return value;
+}
+
+vec3 palette(float value) {
+  vec3 baseColor = vec3(0.5);
+  vec3 amplitude = vec3(0.5);
+  vec3 frequency = vec3(1.0);
+  vec3 phase = vec3(0.0, 0.18, 0.38);
+  return baseColor + amplitude * cos(TAU * (frequency * value + phase));
+}
+
+vec2 centeredCoordinate(vec2 uv) {
+  float aspectRatio = u_resolution.x / u_resolution.y;
+  return (uv - 0.5) * vec2(aspectRatio, 1.0);
+}
+
+vec2 flowDirection(vec2 p, float timeValue) {
+  float noiseValue = fbm(p * u_p2 + vec2(timeValue * 0.4, -timeValue * 0.25));
+  float angle = noiseValue * PI * u_p3;
+  angle += sin(p.x * 2.7 + timeValue) * 1.2;
+  angle += cos(p.y * 3.1 - timeValue * 0.8) * 1.1;
+  return vec2(cos(angle), sin(angle));
+}
+
+vec3 ribbonScene(vec2 uv) {
+  vec2 p = centeredCoordinate(uv);
+  float timeValue = u_time * u_p1;
+  vec2 tracedPosition = p;
+  float lineTotal = 0.0;
+  float glowTotal = 0.0;
+  for (int i = 0; i < 32; i++) {
+    float index = float(i);
+    if (index < u_p4) {
+      vec2 direction = flowDirection(tracedPosition, timeValue + index * 0.035);
+      tracedPosition -= direction * u_p5;
+      float stripePosition = tracedPosition.x * u_p6 + fbm(tracedPosition * 2.4) * 7.0;
+      stripePosition += sin(tracedPosition.y * 8.0 - timeValue * 1.4) * 1.5;
+      float stripeDistance = abs(sin(stripePosition));
+      float fade = 1.0 - index / max(u_p4, 1.0);
+      lineTotal += exp(-stripeDistance * u_p7) * fade;
+      glowTotal += exp(-stripeDistance * 7.0) * fade;
+    }
+  }
+  lineTotal /= max(u_p4 * 0.25, 1.0);
+  glowTotal /= max(u_p4 * 0.6, 1.0);
+  vec3 color = palette(fbm(tracedPosition * 2.0) + timeValue * 0.04);
+  color *= lineTotal * u_p8 + glowTotal * 0.8;
+  return color + vec3(0.0, 0.0, 0.0);
+}
+
+void main() {
+  vec2 uv = vTexCoord;
+  uv.y = 1.0 - uv.y;
+  vec3 finalColor = ribbonScene(uv);
+  finalColor = pow(max(finalColor, vec3(0.0)), vec3(0.95));
+  gl_FragColor = vec4(finalColor, 1.0);
+}\`;
+
+function setup() {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  pixelDensity(1);
+  shaderProgram = createShader(vShader, fShader);
+  noStroke();
+}
+
+function draw() {
+  const elapsedSeconds = millis() / 1000.0;
+  const sineValue = sin(elapsedSeconds * P7_Speed);
+  P7_Value = map(sineValue, -1, 1, P7_Min, P7_Max);
+  shader(shaderProgram);
+  shaderProgram.setUniform("u_resolution", [width, height]);
+  shaderProgram.setUniform("u_time", elapsedSeconds);
+  shaderProgram.setUniform("u_p1", P1_Value);
+  shaderProgram.setUniform("u_p2", P2_Value);
+  shaderProgram.setUniform("u_p3", P3_Value);
+  shaderProgram.setUniform("u_p4", P4_Value);
+  shaderProgram.setUniform("u_p5", P5_Value);
+  shaderProgram.setUniform("u_p6", P6_Value);
+  shaderProgram.setUniform("u_p7", P7_Value);
+  shaderProgram.setUniform("u_p8", P8_Value);
+  rect(-width / 2, -height / 2, width, height);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+  </script>
+</body>
+</html>`,
+    metadata: [
+        { label: "Moteur", value: "P5.js WebGL" },
+        { label: "Bruit", value: "Fractal Brownian Motion" },
+        { label: "Rendu", value: "Raymarching 2D" }
+    ]
+  },
+  {
+    id: "algo-0x0f",
+    title: "ALGO 0x0F",
+    subTitle: "Domain Warp (Atlas #1)",
+    description: "Une distorsion de domaine classique utilisant du bruit fractal. La coordonnée d'échantillonnage est décalée par un champ de bruit, qui est lui-même décalé par un autre champ de bruit, créant des fluides organiques récursifs.",
+    equation: "p' = p + \\nabla \\text{fbm}(p + \\text{fbm}(p))",
+    type: "P5.JS SHADER",
+    code: `// GENERATIVE SHADER - Standalone Export (Mode: 1 - Domain Warp)
+
+const P1_Value = 0.18; // Time Speed
+const P2_Value = 2.2; // Base Noise Scale
+const P3_Value = 3; // Warp Noise Scale
+const P4_Value = 4; // First Warp Strength
+const P5_Value = 5; // Second Warp Strength
+const P6_Value = 12; // Band Frequency
+const P7_Value = 4; // Radial Frequency
+const P8_Value = 0.9; // Brightness
+
+let shaderProgram;
+
+const vShader = \`precision mediump float;
+attribute vec3 aPosition;
+attribute vec2 aTexCoord;
+varying vec2 vTexCoord;
+void main() {
+  vTexCoord = aTexCoord;
+  gl_Position = vec4(aPosition * 2.0 - 1.0, 1.0);
+}\`;
+
+const fShader = \`precision mediump float;
+#define PI 3.14159265359
+#define TAU 6.28318530718
+varying vec2 vTexCoord;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform float u_p1; uniform float u_p2; uniform float u_p3; uniform float u_p4;
+uniform float u_p5; uniform float u_p6; uniform float u_p7; uniform float u_p8;
+
+float hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+vec2 hash22(vec2 p) {
+  float firstValue = hash21(p);
+  float secondValue = hash21(p + vec2(37.17, 91.53));
+  return vec2(firstValue, secondValue);
+}
+
+float noise21(vec2 p) {
+  vec2 integerPart = floor(p);
+  vec2 decimalPart = fract(p);
+  decimalPart = decimalPart * decimalPart * (3.0 - 2.0 * decimalPart);
+  float topLeft = hash21(integerPart);
+  float topRight = hash21(integerPart + vec2(1.0, 0.0));
+  float bottomLeft = hash21(integerPart + vec2(0.0, 1.0));
+  float bottomRight = hash21(integerPart + vec2(1.0, 1.0));
+  float topValue = mix(topLeft, topRight, decimalPart.x);
+  float bottomValue = mix(bottomLeft, bottomRight, decimalPart.x);
+  return mix(topValue, bottomValue, decimalPart.y);
+}
+
+float fbm(vec2 p) {
+  float value = 0.0;
+  float amplitude = 0.5;
+  mat2 rotation = mat2(0.8, -0.6, 0.6, 0.8);
+  for (int i = 0; i < 5; i++) {
+    value += noise21(p) * amplitude;
+    p = rotation * p * 2.03 + vec2(13.7, 9.2);
+    amplitude *= 0.5;
+  }
+  return value;
+}
+
+vec2 rotate2D(vec2 p, float angle) {
+  float cosineValue = cos(angle);
+  float sineValue = sin(angle);
+  return mat2(cosineValue, -sineValue, sineValue, cosineValue) * p;
+}
+
+vec3 palette(float value) {
+  vec3 baseColor = vec3(0.5);
+  vec3 amplitude = vec3(0.5);
+  vec3 frequency = vec3(1.0);
+  vec3 phase = vec3(0.0, 0.18, 0.38);
+  return baseColor + amplitude * cos(TAU * (frequency * value + phase));
+}
+
+vec2 centeredCoordinate(vec2 uv) {
+  float aspectRatio = u_resolution.x / u_resolution.y;
+  return (uv - 0.5) * vec2(aspectRatio, 1.0);
+}
+
+vec3 domainWarpScene(vec2 uv) {
+  vec2 p = centeredCoordinate(uv); 
+  float timeValue = u_time * u_p1; 
+  vec2 firstWarp = vec2(0.0); 
+  firstWarp.x = fbm(p * u_p2 + vec2(timeValue, -timeValue * 0.7)); 
+  firstWarp.y = fbm(p * u_p2 + vec2(5.2, 1.3) + vec2(-timeValue * 0.5, timeValue)); 
+  vec2 secondWarp = vec2(0.0); 
+  secondWarp.x = fbm(p * u_p3 + firstWarp * u_p4 + vec2(1.7, 9.2)); 
+  secondWarp.y = fbm(p * u_p3 + firstWarp * u_p4 + vec2(8.3, 2.8)); 
+  float field = fbm(p * u_p3 + secondWarp * u_p5); 
+  float bands = 0.5 + 0.5 * sin(field * u_p6 - timeValue * 8.0 + length(p) * u_p7); 
+  vec3 color = palette(field * 1.6 + bands * 0.2 + timeValue * 0.1); 
+  color *= 0.35 + bands * u_p8; 
+  return color; 
+}
+
+void main() { 
+  vec2 uv = vTexCoord; 
+  vec3 finalColor = domainWarpScene(uv);
+  finalColor = pow(max(finalColor, vec3(0.0)), vec3(0.85));
+  gl_FragColor = vec4(finalColor, 1.0); 
+}\`;
+
+function setup() {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  pixelDensity(1);
+  shaderProgram = createShader(vShader, fShader);
+  noStroke();
+}
+
+function draw() {
+  shader(shaderProgram);
+  
+  shaderProgram.setUniform('u_resolution', [width, height]);
+  shaderProgram.setUniform('u_time', millis() / 1000.0);
+  
+  shaderProgram.setUniform('u_p1', P1_Value);
+  shaderProgram.setUniform('u_p2', P2_Value);
+  shaderProgram.setUniform('u_p3', P3_Value);
+  shaderProgram.setUniform('u_p4', P4_Value);
+  shaderProgram.setUniform('u_p5', P5_Value);
+  shaderProgram.setUniform('u_p6', P6_Value);
+  shaderProgram.setUniform('u_p7', P7_Value);
+  shaderProgram.setUniform('u_p8', P8_Value);
+  
+  rect(-width/2, -height/2, width, height);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+`,
+    htmlContent: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Domain Warp</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+  <style>
+    body { margin: 0; padding: 0; background-color: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; min-height: 100vh; touch-action: none; }
+    canvas { width: 100vmin !important; height: 100vmin !important; object-fit: contain; box-shadow: 0 0 30px rgba(0,0,0,0.9); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <script>
+// GENERATIVE SHADER - Standalone Export (Mode: 1 - Domain Warp)
+
+const P1_Value = 0.18; // Time Speed
+const P2_Value = 2.2; // Base Noise Scale
+const P3_Value = 3; // Warp Noise Scale
+const P4_Value = 4; // First Warp Strength
+const P5_Value = 5; // Second Warp Strength
+const P6_Value = 12; // Band Frequency
+const P7_Value = 4; // Radial Frequency
+const P8_Value = 0.9; // Brightness
+
+let shaderProgram;
+
+const vShader = \`precision mediump float;
+attribute vec3 aPosition;
+attribute vec2 aTexCoord;
+varying vec2 vTexCoord;
+void main() {
+  vTexCoord = aTexCoord;
+  gl_Position = vec4(aPosition * 2.0 - 1.0, 1.0);
+}\`;
+
+const fShader = \`precision mediump float;
+#define PI 3.14159265359
+#define TAU 6.28318530718
+varying vec2 vTexCoord;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform float u_p1; uniform float u_p2; uniform float u_p3; uniform float u_p4;
+uniform float u_p5; uniform float u_p6; uniform float u_p7; uniform float u_p8;
+
+float hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+vec2 hash22(vec2 p) {
+  float firstValue = hash21(p);
+  float secondValue = hash21(p + vec2(37.17, 91.53));
+  return vec2(firstValue, secondValue);
+}
+
+float noise21(vec2 p) {
+  vec2 integerPart = floor(p);
+  vec2 decimalPart = fract(p);
+  decimalPart = decimalPart * decimalPart * (3.0 - 2.0 * decimalPart);
+  float topLeft = hash21(integerPart);
+  float topRight = hash21(integerPart + vec2(1.0, 0.0));
+  float bottomLeft = hash21(integerPart + vec2(0.0, 1.0));
+  float bottomRight = hash21(integerPart + vec2(1.0, 1.0));
+  float topValue = mix(topLeft, topRight, decimalPart.x);
+  float bottomValue = mix(bottomLeft, bottomRight, decimalPart.x);
+  return mix(topValue, bottomValue, decimalPart.y);
+}
+
+float fbm(vec2 p) {
+  float value = 0.0;
+  float amplitude = 0.5;
+  mat2 rotation = mat2(0.8, -0.6, 0.6, 0.8);
+  for (int i = 0; i < 5; i++) {
+    value += noise21(p) * amplitude;
+    p = rotation * p * 2.03 + vec2(13.7, 9.2);
+    amplitude *= 0.5;
+  }
+  return value;
+}
+
+vec2 rotate2D(vec2 p, float angle) {
+  float cosineValue = cos(angle);
+  float sineValue = sin(angle);
+  return mat2(cosineValue, -sineValue, sineValue, cosineValue) * p;
+}
+
+vec3 palette(float value) {
+  vec3 baseColor = vec3(0.5);
+  vec3 amplitude = vec3(0.5);
+  vec3 frequency = vec3(1.0);
+  vec3 phase = vec3(0.0, 0.18, 0.38);
+  return baseColor + amplitude * cos(TAU * (frequency * value + phase));
+}
+
+vec2 centeredCoordinate(vec2 uv) {
+  float aspectRatio = u_resolution.x / u_resolution.y;
+  return (uv - 0.5) * vec2(aspectRatio, 1.0);
+}
+
+vec3 domainWarpScene(vec2 uv) {
+  vec2 p = centeredCoordinate(uv); 
+  float timeValue = u_time * u_p1; 
+  vec2 firstWarp = vec2(0.0); 
+  firstWarp.x = fbm(p * u_p2 + vec2(timeValue, -timeValue * 0.7)); 
+  firstWarp.y = fbm(p * u_p2 + vec2(5.2, 1.3) + vec2(-timeValue * 0.5, timeValue)); 
+  vec2 secondWarp = vec2(0.0); 
+  secondWarp.x = fbm(p * u_p3 + firstWarp * u_p4 + vec2(1.7, 9.2)); 
+  secondWarp.y = fbm(p * u_p3 + firstWarp * u_p4 + vec2(8.3, 2.8)); 
+  float field = fbm(p * u_p3 + secondWarp * u_p5); 
+  float bands = 0.5 + 0.5 * sin(field * u_p6 - timeValue * 8.0 + length(p) * u_p7); 
+  vec3 color = palette(field * 1.6 + bands * 0.2 + timeValue * 0.1); 
+  color *= 0.35 + bands * u_p8; 
+  return color; 
+}
+
+void main() { 
+  vec2 uv = vTexCoord; 
+  vec3 finalColor = domainWarpScene(uv);
+  finalColor = pow(max(finalColor, vec3(0.0)), vec3(0.85));
+  gl_FragColor = vec4(finalColor, 1.0); 
+}\`;
+
+function setup() {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  pixelDensity(1);
+  shaderProgram = createShader(vShader, fShader);
+  noStroke();
+}
+
+function draw() {
+  shader(shaderProgram);
+  
+  shaderProgram.setUniform('u_resolution', [width, height]);
+  shaderProgram.setUniform('u_time', millis() / 1000.0);
+  
+  shaderProgram.setUniform('u_p1', P1_Value);
+  shaderProgram.setUniform('u_p2', P2_Value);
+  shaderProgram.setUniform('u_p3', P3_Value);
+  shaderProgram.setUniform('u_p4', P4_Value);
+  shaderProgram.setUniform('u_p5', P5_Value);
+  shaderProgram.setUniform('u_p6', P6_Value);
+  shaderProgram.setUniform('u_p7', P7_Value);
+  shaderProgram.setUniform('u_p8', P8_Value);
+  
+  rect(-width/2, -height/2, width, height);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+  </script>
+</body>
+</html>`,
+    metadata: [
+        { label: "Moteur", value: "P5.js WebGL" },
+        { label: "Technique", value: "Domain Warping" },
+        { label: "Bruit", value: "Fractal Brownian Motion" },
+        { label: "Source", value: "Shader Atlas 60" }
+    ]
+  },
+  {
+    id: "algo-0x10",
+    title: "ALGO 0x10",
+    subTitle: "Procedural Nebula (Atlas #13)",
+    description: "Simulation d'une nébuleuse stellaire par raymarching volumétrique simplifié. Le gaz est simulé par un bruit exponentiel fortement contrasté, avec un champ d'étoiles parsemé en arrière-plan.",
+    equation: "c = \\text{fbm}(p + \\text{fbm}(p))^k + \\text{stars}(p)",
+    type: "P5.JS SHADER",
+    code: `// GENERATIVE SHADER - Standalone Export (Mode: 13 - Procedural Nebula)
+
+const P1_Value = 0.15; // Time Speed
+const P2_Value = 2; // Cloud Scale
+const P3_Value = 3.5; // Warp Strength
+const P4_Value = 2; // Cloud Contrast
+const P5_Value = 70; // Star Density
+const P6_Value = 0.975; // Star Threshold
+const P7_Value = 0.15; // Color Shift
+const P8_Value = 1.4; // Brightness
+
+let shaderProgram;
+
+const vShader = \`precision mediump float;
+attribute vec3 aPosition;
+attribute vec2 aTexCoord;
+varying vec2 vTexCoord;
+void main() {
+  vTexCoord = aTexCoord;
+  gl_Position = vec4(aPosition * 2.0 - 1.0, 1.0);
+}\`;
+
+const fShader = \`precision mediump float;
+#define PI 3.14159265359
+#define TAU 6.28318530718
+varying vec2 vTexCoord;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform float u_p1; uniform float u_p2; uniform float u_p3; uniform float u_p4;
+uniform float u_p5; uniform float u_p6; uniform float u_p7; uniform float u_p8;
+
+float hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+vec2 hash22(vec2 p) {
+  float firstValue = hash21(p);
+  float secondValue = hash21(p + vec2(37.17, 91.53));
+  return vec2(firstValue, secondValue);
+}
+
+float noise21(vec2 p) {
+  vec2 integerPart = floor(p);
+  vec2 decimalPart = fract(p);
+  decimalPart = decimalPart * decimalPart * (3.0 - 2.0 * decimalPart);
+  float topLeft = hash21(integerPart);
+  float topRight = hash21(integerPart + vec2(1.0, 0.0));
+  float bottomLeft = hash21(integerPart + vec2(0.0, 1.0));
+  float bottomRight = hash21(integerPart + vec2(1.0, 1.0));
+  float topValue = mix(topLeft, topRight, decimalPart.x);
+  float bottomValue = mix(bottomLeft, bottomRight, decimalPart.x);
+  return mix(topValue, bottomValue, decimalPart.y);
+}
+
+float fbm(vec2 p) {
+  float value = 0.0;
+  float amplitude = 0.5;
+  mat2 rotation = mat2(0.8, -0.6, 0.6, 0.8);
+  for (int i = 0; i < 5; i++) {
+    value += noise21(p) * amplitude;
+    p = rotation * p * 2.03 + vec2(13.7, 9.2);
+    amplitude *= 0.5;
+  }
+  return value;
+}
+
+vec2 rotate2D(vec2 p, float angle) {
+  float cosineValue = cos(angle);
+  float sineValue = sin(angle);
+  return mat2(cosineValue, -sineValue, sineValue, cosineValue) * p;
+}
+
+vec3 palette(float value) {
+  vec3 baseColor = vec3(0.5);
+  vec3 amplitude = vec3(0.5);
+  vec3 frequency = vec3(1.0);
+  vec3 phase = vec3(0.0, 0.18, 0.38);
+  return baseColor + amplitude * cos(TAU * (frequency * value + phase));
+}
+
+vec2 centeredCoordinate(vec2 uv) {
+  float aspectRatio = u_resolution.x / u_resolution.y;
+  return (uv - 0.5) * vec2(aspectRatio, 1.0);
+}
+
+vec3 nebulaScene(vec2 uv) { 
+  vec2 p = centeredCoordinate(uv); 
+  float timeValue = u_time * u_p1; 
+  vec2 firstWarp = vec2(fbm(p * u_p2 + vec2(timeValue, 0.0)), fbm(p * u_p2 + vec2(4.2, timeValue))); 
+  float cloud = fbm(p * u_p2 + firstWarp * u_p3); 
+  cloud = pow(max(cloud, 0.0), max(u_p4, 0.1)); 
+  vec2 starPosition = p * u_p5; 
+  vec2 starCell = floor(starPosition); 
+  vec2 starLocal = fract(starPosition) - 0.5; 
+  float starSeed = hash21(starCell); 
+  float star = step(u_p6, starSeed) * exp(-length(starLocal) * 70.0); 
+  vec3 cloudColor = palette(cloud * 1.5 + u_p7 + timeValue * 0.03); 
+  cloudColor *= cloud * u_p8 * 1.5; 
+  return cloudColor + vec3(star) * u_p8 * 2.0; 
+}
+
+void main() { 
+  vec2 uv = vTexCoord; 
+  vec3 finalColor = nebulaScene(uv);
+  finalColor = pow(max(finalColor, vec3(0.0)), vec3(0.85));
+  gl_FragColor = vec4(finalColor, 1.0); 
+}\`;
+
+function setup() {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  pixelDensity(1);
+  shaderProgram = createShader(vShader, fShader);
+  noStroke();
+}
+
+function draw() {
+  shader(shaderProgram);
+  
+  shaderProgram.setUniform('u_resolution', [width, height]);
+  shaderProgram.setUniform('u_time', millis() / 1000.0);
+  
+  shaderProgram.setUniform('u_p1', P1_Value);
+  shaderProgram.setUniform('u_p2', P2_Value);
+  shaderProgram.setUniform('u_p3', P3_Value);
+  shaderProgram.setUniform('u_p4', P4_Value);
+  shaderProgram.setUniform('u_p5', P5_Value);
+  shaderProgram.setUniform('u_p6', P6_Value);
+  shaderProgram.setUniform('u_p7', P7_Value);
+  shaderProgram.setUniform('u_p8', P8_Value);
+  
+  rect(-width/2, -height/2, width, height);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+`,
+    htmlContent: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Procedural Nebula</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+  <style>
+    body { margin: 0; padding: 0; background-color: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; min-height: 100vh; touch-action: none; }
+    canvas { width: 100vmin !important; height: 100vmin !important; object-fit: contain; box-shadow: 0 0 30px rgba(0,0,0,0.9); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <script>
+// GENERATIVE SHADER - Standalone Export (Mode: 13 - Procedural Nebula)
+
+const P1_Value = 0.15; // Time Speed
+const P2_Value = 2; // Cloud Scale
+const P3_Value = 3.5; // Warp Strength
+const P4_Value = 2; // Cloud Contrast
+const P5_Value = 70; // Star Density
+const P6_Value = 0.975; // Star Threshold
+const P7_Value = 0.15; // Color Shift
+const P8_Value = 1.4; // Brightness
+
+let shaderProgram;
+
+const vShader = \`precision mediump float;
+attribute vec3 aPosition;
+attribute vec2 aTexCoord;
+varying vec2 vTexCoord;
+void main() {
+  vTexCoord = aTexCoord;
+  gl_Position = vec4(aPosition * 2.0 - 1.0, 1.0);
+}\`;
+
+const fShader = \`precision mediump float;
+#define PI 3.14159265359
+#define TAU 6.28318530718
+varying vec2 vTexCoord;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform float u_p1; uniform float u_p2; uniform float u_p3; uniform float u_p4;
+uniform float u_p5; uniform float u_p6; uniform float u_p7; uniform float u_p8;
+
+float hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+vec2 hash22(vec2 p) {
+  float firstValue = hash21(p);
+  float secondValue = hash21(p + vec2(37.17, 91.53));
+  return vec2(firstValue, secondValue);
+}
+
+float noise21(vec2 p) {
+  vec2 integerPart = floor(p);
+  vec2 decimalPart = fract(p);
+  decimalPart = decimalPart * decimalPart * (3.0 - 2.0 * decimalPart);
+  float topLeft = hash21(integerPart);
+  float topRight = hash21(integerPart + vec2(1.0, 0.0));
+  float bottomLeft = hash21(integerPart + vec2(0.0, 1.0));
+  float bottomRight = hash21(integerPart + vec2(1.0, 1.0));
+  float topValue = mix(topLeft, topRight, decimalPart.x);
+  float bottomValue = mix(bottomLeft, bottomRight, decimalPart.x);
+  return mix(topValue, bottomValue, decimalPart.y);
+}
+
+float fbm(vec2 p) {
+  float value = 0.0;
+  float amplitude = 0.5;
+  mat2 rotation = mat2(0.8, -0.6, 0.6, 0.8);
+  for (int i = 0; i < 5; i++) {
+    value += noise21(p) * amplitude;
+    p = rotation * p * 2.03 + vec2(13.7, 9.2);
+    amplitude *= 0.5;
+  }
+  return value;
+}
+
+vec2 rotate2D(vec2 p, float angle) {
+  float cosineValue = cos(angle);
+  float sineValue = sin(angle);
+  return mat2(cosineValue, -sineValue, sineValue, cosineValue) * p;
+}
+
+vec3 palette(float value) {
+  vec3 baseColor = vec3(0.5);
+  vec3 amplitude = vec3(0.5);
+  vec3 frequency = vec3(1.0);
+  vec3 phase = vec3(0.0, 0.18, 0.38);
+  return baseColor + amplitude * cos(TAU * (frequency * value + phase));
+}
+
+vec2 centeredCoordinate(vec2 uv) {
+  float aspectRatio = u_resolution.x / u_resolution.y;
+  return (uv - 0.5) * vec2(aspectRatio, 1.0);
+}
+
+vec3 nebulaScene(vec2 uv) { 
+  vec2 p = centeredCoordinate(uv); 
+  float timeValue = u_time * u_p1; 
+  vec2 firstWarp = vec2(fbm(p * u_p2 + vec2(timeValue, 0.0)), fbm(p * u_p2 + vec2(4.2, timeValue))); 
+  float cloud = fbm(p * u_p2 + firstWarp * u_p3); 
+  cloud = pow(max(cloud, 0.0), max(u_p4, 0.1)); 
+  vec2 starPosition = p * u_p5; 
+  vec2 starCell = floor(starPosition); 
+  vec2 starLocal = fract(starPosition) - 0.5; 
+  float starSeed = hash21(starCell); 
+  float star = step(u_p6, starSeed) * exp(-length(starLocal) * 70.0); 
+  vec3 cloudColor = palette(cloud * 1.5 + u_p7 + timeValue * 0.03); 
+  cloudColor *= cloud * u_p8 * 1.5; 
+  return cloudColor + vec3(star) * u_p8 * 2.0; 
+}
+
+void main() { 
+  vec2 uv = vTexCoord; 
+  vec3 finalColor = nebulaScene(uv);
+  finalColor = pow(max(finalColor, vec3(0.0)), vec3(0.85));
+  gl_FragColor = vec4(finalColor, 1.0); 
+}\`;
+
+function setup() {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  pixelDensity(1);
+  shaderProgram = createShader(vShader, fShader);
+  noStroke();
+}
+
+function draw() {
+  shader(shaderProgram);
+  
+  shaderProgram.setUniform('u_resolution', [width, height]);
+  shaderProgram.setUniform('u_time', millis() / 1000.0);
+  
+  shaderProgram.setUniform('u_p1', P1_Value);
+  shaderProgram.setUniform('u_p2', P2_Value);
+  shaderProgram.setUniform('u_p3', P3_Value);
+  shaderProgram.setUniform('u_p4', P4_Value);
+  shaderProgram.setUniform('u_p5', P5_Value);
+  shaderProgram.setUniform('u_p6', P6_Value);
+  shaderProgram.setUniform('u_p7', P7_Value);
+  shaderProgram.setUniform('u_p8', P8_Value);
+  
+  rect(-width/2, -height/2, width, height);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+  </script>
+</body>
+</html>`,
+    metadata: [
+        { label: "Moteur", value: "P5.js WebGL" },
+        { label: "Rendu", value: "Volumetric FBM" },
+        { label: "Effet", value: "Cosmic Glow" },
+        { label: "Source", value: "Shader Atlas 60" }
+    ]
   }
 ];
 
@@ -1274,7 +2200,9 @@ const getProcessedHtmlContent = (html: string, isLowSpec: boolean) => {
     .replace(/canvas\.width = 800; canvas\.height = 800;/g, 'canvas.width = 400; canvas.height = 400;')
     .replace(/gl\.viewport\(0, 0, 800, 800\);/g, 'gl.viewport(0, 0, 400, 400);')
     .replace(/< 15/g, '< 8')
-    .replace(/< 100/g, '< 40');
+    .replace(/< 100/g, '< 40')
+    .replace(/for \(int i = 0; i < 32; i\+\+\) \{/g, 'for (int i = 0; i < 16; i++) {')
+    .replace(/const P4_Value = 30.0;/g, 'const P4_Value = 15.0;');
 };
 
 export default function App() {
