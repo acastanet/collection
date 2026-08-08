@@ -986,6 +986,409 @@ dv = Db * lapl.g + uv_reaction - (feed + kill) * v;`,
     ]
   },
   {
+    id: "algo-0x0a",
+    title: "ALGO 0x0A",
+    subTitle: "Générateur de Formes",
+    description: "Un générateur de formes aléatoires créé par Okazz (2026). Le système dévoile progressivement une grille d'éléments géométriques avec un nouveau symbole dessiné toutes les secondes, explorant des variations de formes et de couleurs asymétriques.",
+    equation: "\\text{Shape}(x, y) = \\mathcal{U}(\\text{Palette}, \\text{Rotate}, \\text{Variant})",
+    type: "P5.JS",
+    code: `/*
+By Okazz 2026
+Animated sequentially
+*/
+
+let palette = ['#00AA9D', '#EBB408', '#1E2221', '#db6a2d', '#803d8a', '#C00A51'];
+let gridResolution = 7;
+let drawingArea;
+let cellSize;
+let colIdx = 0;
+let rowIdx = 0;
+let lastTime = 0;
+
+function setup() {
+    createCanvas(windowWidth, windowHeight);
+    rectMode(CENTER);
+    colorMode(HSB, 360, 100, 100, 100);
+    background('#e0e6eb');
+
+    drawingArea = min(width, height) * 0.8;
+    cellSize = drawingArea / gridResolution;
+}
+
+function draw() {
+    if (millis() - lastTime > 1000) {
+        if (rowIdx < gridResolution) {
+            const cellX = colIdx * cellSize + (cellSize / 2) + (width - drawingArea) / 2;
+            const cellY = rowIdx * cellSize + (cellSize / 2) + (height - drawingArea) / 2;
+            fill(random(palette));
+            noStroke();
+            drawShape(cellX, cellY, cellSize * 0.65);
+            
+            colIdx++;
+            if (colIdx >= gridResolution) {
+                colIdx = 0;
+                rowIdx++;
+            }
+            lastTime = millis();
+        } else {
+            background('#e0e6eb');
+            colIdx = 0;
+            rowIdx = 0;
+            lastTime = millis();
+        }
+    }
+}
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    background('#e0e6eb');
+    drawingArea = min(width, height) * 0.8;
+    cellSize = drawingArea / gridResolution;
+    colIdx = 0;
+    rowIdx = 0;
+    lastTime = 0;
+}
+
+function drawShape(x, y, w) {
+    let shapeVariant = ceil(random(4));
+    let rotationAngle = int(random(4)) * (TAU / 4);
+    let shuffledColors = shuffle(palette, true);
+    let shapeSize = w * 0.8;
+    push();
+    translate(x, y);
+    rotate(rotationAngle);
+    noStroke();
+    fill(shuffledColors[0]);
+
+    fill(shuffledColors[ceil(random(palette.length - 1))]);
+    switch (shapeVariant) {
+        case 1:
+            drawIrregularShape(0, 0, shapeSize);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(shapeSize / 4, shapeSize / 4, shapeSize / 2);
+            break
+        case 2:
+            drawBarShape(0, shapeSize / 4, shapeSize);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawBarShape(0, -shapeSize / 4, shapeSize);
+            break
+        case 3:
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawBarShape(0, -shapeSize / 4, shapeSize);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(-shapeSize / 4, shapeSize / 4, shapeSize / 2);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(shapeSize / 4, shapeSize / 4, shapeSize / 2);
+            break
+        case 4:
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(shapeSize / 4, shapeSize / 4, shapeSize / 2);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(-shapeSize / 4, shapeSize / 4, shapeSize / 2);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(shapeSize / 4, -shapeSize / 4, shapeSize / 2);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(-shapeSize / 4, -shapeSize / 4, shapeSize / 2);
+            break
+    }
+    pop();
+}
+
+function drawIrregularShape(x, y, w) {
+    let variant = ceil(random(3));
+    push();
+    translate(x, y);
+    switch (variant) {
+        case 1:
+            beginShape();
+            vertex(-w / 2, -w / 2);
+            vertex(w / 2, -w / 2);
+            vertex(w / 2, 0);
+            vertex(0, 0);
+            vertex(0, w / 2);
+            vertex(-w / 2, w / 2);
+            endShape(CLOSE);
+            break;
+        case 2:
+            arc(0, 0, w, w, PI / 2, TAU, PIE);
+            break;
+        case 3:
+            beginShape();
+            vertex(0, 0);
+            vertex(w / 2, 0);
+            vertex(0, -w / 2);
+            vertex(-w / 2, 0);
+            vertex(0, w / 2);
+            endShape(CLOSE);
+            break;
+    }
+    pop();
+}
+
+function drawBarShape(x, y, w) {
+    let h = w / 2;
+    let rotationAngle = int(random(2)) * PI;
+    let variant = ceil(random(3));
+
+    push();
+    translate(x, y);
+    rotate(rotationAngle);
+
+    switch (variant) {
+        case 1:
+            rect(0, 0, w, h)
+            break;
+        case 2:
+            arc(0, -h / 2, w, w, 0, PI, PIE);
+            break;
+        case 3:
+            beginShape();
+            vertex(w / 2, -h / 2);
+            vertex(0, h / 2);
+            vertex(-w / 2, -h / 2);
+            endShape(CLOSE);
+            break;
+    }
+    pop();
+}
+
+function drawMiniShape(x, y, w) {
+    let variant = ceil(random(4));
+    let rotationAngle = int(random(4)) * (TAU / 4);
+    push();
+    translate(x, y);
+    rotate(rotationAngle);
+
+    switch (variant) {
+        case 1:
+            square(0, 0, w);
+            break;
+        case 2:
+            arc(-w / 2, -w / 2, w * 2, w * 2, 0, PI / 2, PIE);
+            break;
+        case 3:
+            circle(0, 0, w);
+            break;
+        case 4:
+            beginShape();
+            vertex(-w / 2, -w / 2);
+            vertex(w / 2, w / 2);
+            vertex(-w / 2, w / 2);
+            endShape(CLOSE);
+            break;
+    }
+    pop();
+}`,
+    htmlContent: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Générateur de Formes</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+  <style>
+    body { margin: 0; padding: 0; background-color: #e0e6eb; overflow: hidden; display: flex; justify-content: center; align-items: center; min-height: 100vh; touch-action: none; }
+    canvas { width: 100vmin !important; height: 100vmin !important; object-fit: contain; }
+  </style>
+</head>
+<body>
+  <script>
+/*
+By Okazz 2026
+Animated sequentially
+*/
+
+let palette = ['#00AA9D', '#EBB408', '#1E2221', '#db6a2d', '#803d8a', '#C00A51'];
+let gridResolution = 7;
+let drawingArea;
+let cellSize;
+let colIdx = 0;
+let rowIdx = 0;
+let lastTime = 0;
+
+function setup() {
+    createCanvas(windowWidth, windowHeight);
+    rectMode(CENTER);
+    colorMode(HSB, 360, 100, 100, 100);
+    background('#e0e6eb');
+
+    drawingArea = min(width, height) * 0.8;
+    cellSize = drawingArea / gridResolution;
+}
+
+function draw() {
+    if (millis() - lastTime > 1000) {
+        if (rowIdx < gridResolution) {
+            const cellX = colIdx * cellSize + (cellSize / 2) + (width - drawingArea) / 2;
+            const cellY = rowIdx * cellSize + (cellSize / 2) + (height - drawingArea) / 2;
+            fill(random(palette));
+            noStroke();
+            drawShape(cellX, cellY, cellSize * 0.65);
+            
+            colIdx++;
+            if (colIdx >= gridResolution) {
+                colIdx = 0;
+                rowIdx++;
+            }
+            lastTime = millis();
+        } else {
+            background('#e0e6eb');
+            colIdx = 0;
+            rowIdx = 0;
+            lastTime = millis();
+        }
+    }
+}
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    background('#e0e6eb');
+    drawingArea = min(width, height) * 0.8;
+    cellSize = drawingArea / gridResolution;
+    colIdx = 0;
+    rowIdx = 0;
+    lastTime = 0;
+}
+
+function drawShape(x, y, w) {
+    let shapeVariant = ceil(random(4));
+    let rotationAngle = int(random(4)) * (TAU / 4);
+    let shuffledColors = shuffle(palette, true);
+    let shapeSize = w * 0.8;
+    push();
+    translate(x, y);
+    rotate(rotationAngle);
+    noStroke();
+    fill(shuffledColors[0]);
+
+    fill(shuffledColors[ceil(random(palette.length - 1))]);
+    switch (shapeVariant) {
+        case 1:
+            drawIrregularShape(0, 0, shapeSize);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(shapeSize / 4, shapeSize / 4, shapeSize / 2);
+            break
+        case 2:
+            drawBarShape(0, shapeSize / 4, shapeSize);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawBarShape(0, -shapeSize / 4, shapeSize);
+            break
+        case 3:
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawBarShape(0, -shapeSize / 4, shapeSize);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(-shapeSize / 4, shapeSize / 4, shapeSize / 2);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(shapeSize / 4, shapeSize / 4, shapeSize / 2);
+            break
+        case 4:
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(shapeSize / 4, shapeSize / 4, shapeSize / 2);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(-shapeSize / 4, shapeSize / 4, shapeSize / 2);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(shapeSize / 4, -shapeSize / 4, shapeSize / 2);
+            fill(shuffledColors[ceil(random(palette.length - 1))]);
+            drawMiniShape(-shapeSize / 4, -shapeSize / 4, shapeSize / 2);
+            break
+    }
+    pop();
+}
+
+function drawIrregularShape(x, y, w) {
+    let variant = ceil(random(3));
+    push();
+    translate(x, y);
+    switch (variant) {
+        case 1:
+            beginShape();
+            vertex(-w / 2, -w / 2);
+            vertex(w / 2, -w / 2);
+            vertex(w / 2, 0);
+            vertex(0, 0);
+            vertex(0, w / 2);
+            vertex(-w / 2, w / 2);
+            endShape(CLOSE);
+            break;
+        case 2:
+            arc(0, 0, w, w, PI / 2, TAU, PIE);
+            break;
+        case 3:
+            beginShape();
+            vertex(0, 0);
+            vertex(w / 2, 0);
+            vertex(0, -w / 2);
+            vertex(-w / 2, 0);
+            vertex(0, w / 2);
+            endShape(CLOSE);
+            break;
+    }
+    pop();
+}
+
+function drawBarShape(x, y, w) {
+    let h = w / 2;
+    let rotationAngle = int(random(2)) * PI;
+    let variant = ceil(random(3));
+
+    push();
+    translate(x, y);
+    rotate(rotationAngle);
+
+    switch (variant) {
+        case 1:
+            rect(0, 0, w, h)
+            break;
+        case 2:
+            arc(0, -h / 2, w, w, 0, PI, PIE);
+            break;
+        case 3:
+            beginShape();
+            vertex(w / 2, -h / 2);
+            vertex(0, h / 2);
+            vertex(-w / 2, -h / 2);
+            endShape(CLOSE);
+            break;
+    }
+    pop();
+}
+
+function drawMiniShape(x, y, w) {
+    let variant = ceil(random(4));
+    let rotationAngle = int(random(4)) * (TAU / 4);
+    push();
+    translate(x, y);
+    rotate(rotationAngle);
+
+    switch (variant) {
+        case 1:
+            square(0, 0, w);
+            break;
+        case 2:
+            arc(-w / 2, -w / 2, w * 2, w * 2, 0, PI / 2, PIE);
+            break;
+        case 3:
+            circle(0, 0, w);
+            break;
+        case 4:
+            beginShape();
+            vertex(-w / 2, -w / 2);
+            vertex(w / 2, w / 2);
+            vertex(-w / 2, w / 2);
+            endShape(CLOSE);
+            break;
+    }
+    pop();
+}
+  </script>
+</body>
+</html>`,
+    metadata: [
+        { label: "Source", value: "Okazz 2026" },
+        { label: "Système", value: "Grille Séquentielle" },
+        { label: "Animation", value: "1Hz" }
+    ]
+  },
+  {
     id: "algo-0x0b",
     title: "ALGO 0x0B",
     subTitle: "Attracteur Étrange",
@@ -1571,6 +1974,689 @@ function windowResized() {
         { label: "Moteur", value: "P5.js WebGL" },
         { label: "Bruit", value: "Fractal Brownian Motion" },
         { label: "Rendu", value: "Raymarching 2D" }
+    ]
+  },
+  {
+    id: "algo-0x0e",
+    title: "ALGO 0x0E",
+    subTitle: "Abstract Chromatic Light",
+    description: "Un rendu abstrait de lumière chromatique utilisant THREE.js. Un shader fragment avancé simule des déformations spatiales récursives et une accumulation lumineuse spectrale par lancer de rayons volumétrique temporel.",
+    equation: "L(x, \\omega) = \\int_{0}^{D} \\sin(\\Phi(s) + C) \\cdot ds",
+    type: "THREE.JS SHADER",
+    code: `import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
+
+    const params = {
+        preset: "Preset 1",
+        traceSteps: 114,
+        warpSteps: 6,
+        timeSpeed: 0.2,
+        initialDepth: 6.1,
+        baseStep: 0.001,
+        depthTarget: 3.8,
+        depthBlend: 0.5,
+        stepDivisor: 11.6,
+        warpSpatialScale: 0.86,
+        warpAmplitude: 1.1,
+        warpTurnSmoothing: -0.02,
+        fieldSmoothness: 0.01,
+        colorFrequency: 0.15,
+        exposure: 30000,
+        fractalColor: "#ffffff",
+        backgroundColor: "#000000",
+        dpr: 1.0,
+        pause: false,
+        resetTime: () => resetAnimationTime()
+    };
+
+    const presets = {
+        "Preset 1": {
+            traceSteps: 114, warpSteps: 6, timeSpeed: 0.2, initialDepth: 6.1, baseStep: 0.001, depthTarget: 3.8, depthBlend: 0.5, stepDivisor: 11.6, warpSpatialScale: 0.86, warpAmplitude: 1.1, warpTurnSmoothing: -0.02, fieldSmoothness: 0.01, colorFrequency: 0.15, exposure: 30000, fractalColor: "#ffffff", backgroundColor: "#000000", dpr: 1.0, pause: false
+        }
+    };
+
+    const DPR_OPTIONS = { "0.5": 0.5, "0.7": 0.7, "1.0": 1, "1.5": 1.5 };
+    const TRACE_STEPS_MIN = 30;
+    const TRACE_STEPS_MAX = 180;
+    const WARP_STEPS_MIN = 1;
+    const WARP_STEPS_MAX = 10;
+
+    const vertexShader = \`
+        precision highp float;
+        void main() {
+            vec2 position;
+            if (gl_VertexID == 0) position = vec2(-1.0, -1.0);
+            else if (gl_VertexID == 1) position = vec2(3.0, -1.0);
+            else position = vec2(-1.0, 3.0);
+            gl_Position = vec4(position, 0.0, 1.0);
+        }\`;
+
+    function createFragmentShader() {
+        const traceSteps = Math.round(THREE.MathUtils.clamp(params.traceSteps, TRACE_STEPS_MIN, TRACE_STEPS_MAX));
+        const warpSteps = Math.round(THREE.MathUtils.clamp(params.warpSteps, WARP_STEPS_MIN, WARP_STEPS_MAX));
+
+        return \`
+            precision highp float;
+            precision highp int;
+            #define TRACE_STEPS \${traceSteps}
+            #define WARP_STEPS \${warpSteps}
+
+            uniform vec2 uResolution;
+            uniform float uAnimationTime;
+            uniform float uInitialDepth;
+            uniform float uBaseStep;
+            uniform float uDepthTarget;
+            uniform float uDepthBlend;
+            uniform float uInverseStepDivisor;
+            uniform float uWarpSpatialScale;
+            uniform float uWarpAmplitude;
+            uniform float uWarpTurnSmoothing;
+            uniform float uFieldSmoothness;
+            uniform float uColorFrequency;
+            uniform float uInverseExposure;
+            uniform vec3 uFractalColor;
+            uniform vec3 uBackgroundColor;
+
+            out vec4 outputColor;
+
+            vec3 safeNormalize(vec3 value) {
+                return value * inversesqrt(max(dot(value, value), 1e-8));
+            }
+
+            float smoothAbsolute(float value, float radius) {
+                return sqrt(value * value + radius * radius);
+            }
+
+            vec3 createViewRay(vec2 fragCoord) {
+                vec2 uv = (fragCoord * 2.0 - uResolution) / max(uResolution.y, 1.0);
+                return safeNormalize(vec3(-uv, 1.0));
+            }
+
+            vec3 evaluateFractalWarp(vec3 position) {
+                float frequency = 3.4;
+                for (int warpIndex = 0; warpIndex < WARP_STEPS; ++warpIndex) {
+                    frequency *= 0.625;
+                    float spatialFrequency = frequency * uWarpSpatialScale;
+                    float phaseOffset = frequency + uAnimationTime;
+                    vec3 phase = position * spatialFrequency + phaseOffset;
+                    float inverseFrequency = 1.0 / max(frequency, 1e-4);
+                    vec3 displacement = sin(phase) * (uWarpAmplitude * inverseFrequency);
+                    position = mix(position.zxy, position, uWarpTurnSmoothing) + displacement;
+                }
+                return position;
+            }
+
+            float calculateRayStep(float rayDepth, float warpedDepth) {
+                float mixedDepth = mix(rayDepth, warpedDepth, uDepthBlend);
+                float fieldDifference = smoothAbsolute(uDepthTarget - mixedDepth, uFieldSmoothness);
+                return uBaseStep + fieldDifference * uInverseStepDivisor;
+            }
+
+            void main() {
+                vec3 rayDirection = createViewRay(gl_FragCoord.xy);
+                float rayDepth = uInitialDepth;
+                vec3 accumulatedLight = vec3(0.0);
+                const vec3 channelOffsets = vec3(0.0, 1.0, 2.0);
+
+                for (int traceIndex = 0; traceIndex < TRACE_STEPS; ++traceIndex) {
+                    vec3 rayPosition = rayDirection * rayDepth;
+                    vec3 warpedPosition = evaluateFractalWarp(rayPosition);
+                    float rayStep = calculateRayStep(rayDepth, warpedPosition.z);
+                    rayDepth += rayStep;
+                    float colorPhase = rayDepth + float(traceIndex) * uColorFrequency;
+                    vec3 chromaticLight = sin(colorPhase + channelOffsets) + 1.0;
+                    accumulatedLight += chromaticLight / max(rayStep, 1e-6);
+                }
+
+                vec3 originalFractalColor = tanh(accumulatedLight * uInverseExposure);
+                vec3 tintedFractalColor = originalFractalColor * uFractalColor;
+                float fractalMask = clamp(max(tintedFractalColor.r, max(tintedFractalColor.g, tintedFractalColor.b)), 0.0, 1.0);
+                vec3 finalColor = uBackgroundColor + tintedFractalColor * fractalMask;
+                outputColor = vec4(max(finalColor, vec3(0.0)), 1.0);
+            }\`;
+    }
+
+    const renderer = new THREE.WebGLRenderer({
+        antialias: false,
+        alpha: false,
+        depth: false,
+        stencil: false,
+        powerPreference: "high-performance"
+    });
+
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.setClearColor(params.backgroundColor, 1);
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.Camera();
+
+    const uniforms = {
+        uResolution: { value: new THREE.Vector2() },
+        uAnimationTime: { value: 0 },
+        uInitialDepth: { value: params.initialDepth },
+        uBaseStep: { value: params.baseStep },
+        uDepthTarget: { value: params.depthTarget },
+        uDepthBlend: { value: params.depthBlend },
+        uInverseStepDivisor: { value: 1 / params.stepDivisor },
+        uWarpSpatialScale: { value: params.warpSpatialScale },
+        uWarpAmplitude: { value: params.warpAmplitude },
+        uWarpTurnSmoothing: { value: params.warpTurnSmoothing },
+        uFieldSmoothness: { value: params.fieldSmoothness },
+        uColorFrequency: { value: params.colorFrequency },
+        uInverseExposure: { value: 1 / params.exposure },
+        uFractalColor: { value: new THREE.Color(params.fractalColor) },
+        uBackgroundColor: { value: new THREE.Color(params.backgroundColor) }
+    };
+
+    function createShaderMaterial() {
+        return new THREE.RawShaderMaterial({
+            uniforms,
+            vertexShader,
+            fragmentShader: createFragmentShader(),
+            glslVersion: THREE.GLSL3,
+            depthTest: false,
+            depthWrite: false,
+            transparent: false,
+            toneMapped: false
+        });
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array([0, 0, 0, 0, 0, 0, 0, 0, 0]), 3));
+    
+    const fullscreenTriangle = new THREE.Mesh(geometry, createShaderMaterial());
+    fullscreenTriangle.frustumCulled = false;
+    scene.add(fullscreenTriangle);
+
+    function rebuildShader() {
+        const previousMaterial = fullscreenTriangle.material;
+        fullscreenTriangle.material = createShaderMaterial();
+        previousMaterial.dispose();
+        requestRender();
+    }
+
+    const clock = new THREE.Clock();
+    let elapsedTime = 0;
+    let forceRender = true;
+    let isInViewport = true;
+    let isDocumentVisible = !document.hidden;
+
+    function requestRender() { forceRender = true; }
+
+    function resetAnimationTime() {
+        elapsedTime = 0;
+        uniforms.uAnimationTime.value = 0;
+        clock.getDelta();
+        requestRender();
+    }
+
+    let viewportWidth = 0;
+    let viewportHeight = 0;
+    let currentDpr = 0;
+
+    function updateResolution() {
+        const width = Math.max(window.innerWidth, 1);
+        const height = Math.max(window.innerHeight, 1);
+        const nextDpr = Number(params.dpr);
+
+        if (width !== viewportWidth || height !== viewportHeight || nextDpr !== currentDpr) {
+            viewportWidth = width;
+            viewportHeight = height;
+            currentDpr = nextDpr;
+            renderer.setPixelRatio(nextDpr);
+            renderer.setSize(width, height, false);
+            renderer.getDrawingBufferSize(uniforms.uResolution.value);
+        }
+        requestRender();
+    }
+
+    function handleResize() { updateResolution(); }
+    window.addEventListener("resize", handleResize, { passive: true });
+    updateResolution();
+
+    const intersectionObserver = new IntersectionObserver((entries) => {
+        const entry = entries[0];
+        isInViewport = entry.isIntersecting && entry.intersectionRatio > 0;
+        if (isInViewport) { clock.getDelta(); requestRender(); }
+    }, { threshold: 0 });
+
+    intersectionObserver.observe(renderer.domElement);
+
+    function handleVisibilityChange() {
+        isDocumentVisible = !document.hidden;
+        clock.getDelta();
+        if (isDocumentVisible) requestRender();
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    function applyPreset(presetName) {
+        const preset = presets[presetName];
+        if (!preset) return;
+
+        const previousTraceSteps = params.traceSteps;
+        const previousWarpSteps = params.warpSteps;
+
+        for (const [key, value] of Object.entries(preset)) {
+            params[key] = value;
+        }
+
+        params.preset = presetName;
+
+        uniforms.uInitialDepth.value = params.initialDepth;
+        uniforms.uBaseStep.value = params.baseStep;
+        uniforms.uDepthTarget.value = params.depthTarget;
+        uniforms.uDepthBlend.value = params.depthBlend;
+        uniforms.uInverseStepDivisor.value = 1 / Math.max(params.stepDivisor, 1e-6);
+        uniforms.uWarpSpatialScale.value = params.warpSpatialScale;
+        uniforms.uWarpAmplitude.value = params.warpAmplitude;
+        uniforms.uWarpTurnSmoothing.value = params.warpTurnSmoothing;
+        uniforms.uFieldSmoothness.value = params.fieldSmoothness;
+        uniforms.uColorFrequency.value = params.colorFrequency;
+        uniforms.uInverseExposure.value = 1 / Math.max(params.exposure, 1);
+        uniforms.uFractalColor.value.set(params.fractalColor);
+        uniforms.uBackgroundColor.value.set(params.backgroundColor);
+
+        renderer.setClearColor(params.backgroundColor, 1);
+        document.body.style.backgroundColor = params.backgroundColor;
+
+        updateResolution();
+
+        if (previousTraceSteps !== params.traceSteps || previousWarpSteps !== params.warpSteps) {
+            rebuildShader();
+        } else {
+            requestRender();
+        }
+
+        clock.getDelta();
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        if (!isDocumentVisible || !isInViewport) {
+            clock.getDelta();
+            return;
+        }
+
+        const isAnimated = !params.pause && params.timeSpeed > 0;
+
+        if (!isAnimated && !forceRender) {
+            clock.getDelta();
+            return;
+        }
+
+        const deltaTime = Math.min(clock.getDelta(), 1 / 30);
+
+        if (isAnimated) {
+            elapsedTime += deltaTime;
+            uniforms.uAnimationTime.value = elapsedTime * params.timeSpeed;
+        }
+
+        renderer.render(scene, camera);
+        forceRender = false;
+    }
+
+    animate();
+
+    function dispose() {
+        window.removeEventListener("resize", handleResize);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        intersectionObserver.disconnect();
+        geometry.dispose();
+        fullscreenTriangle.material.dispose();
+        renderer.dispose();
+    }
+
+    window.addEventListener("beforeunload", dispose, { once: true });`,
+    htmlContent: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>Abstract Chromatic Light</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000000; }
+        canvas { display: block; width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+<script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
+
+    const params = {
+        preset: "Preset 1",
+        traceSteps: 114,
+        warpSteps: 6,
+        timeSpeed: 0.2,
+        initialDepth: 6.1,
+        baseStep: 0.001,
+        depthTarget: 3.8,
+        depthBlend: 0.5,
+        stepDivisor: 11.6,
+        warpSpatialScale: 0.86,
+        warpAmplitude: 1.1,
+        warpTurnSmoothing: -0.02,
+        fieldSmoothness: 0.01,
+        colorFrequency: 0.15,
+        exposure: 30000,
+        fractalColor: "#ffffff",
+        backgroundColor: "#000000",
+        dpr: 1.0,
+        pause: false,
+        resetTime: () => resetAnimationTime()
+    };
+
+    const presets = {
+        "Preset 1": {
+            traceSteps: 114, warpSteps: 6, timeSpeed: 0.2, initialDepth: 6.1, baseStep: 0.001, depthTarget: 3.8, depthBlend: 0.5, stepDivisor: 11.6, warpSpatialScale: 0.86, warpAmplitude: 1.1, warpTurnSmoothing: -0.02, fieldSmoothness: 0.01, colorFrequency: 0.15, exposure: 30000, fractalColor: "#ffffff", backgroundColor: "#000000", dpr: 1.0, pause: false
+        }
+    };
+
+    const DPR_OPTIONS = { "0.5": 0.5, "0.7": 0.7, "1.0": 1, "1.5": 1.5 };
+    const TRACE_STEPS_MIN = 30;
+    const TRACE_STEPS_MAX = 180;
+    const WARP_STEPS_MIN = 1;
+    const WARP_STEPS_MAX = 10;
+
+    const vertexShader = \`
+        precision highp float;
+        void main() {
+            vec2 position;
+            if (gl_VertexID == 0) position = vec2(-1.0, -1.0);
+            else if (gl_VertexID == 1) position = vec2(3.0, -1.0);
+            else position = vec2(-1.0, 3.0);
+            gl_Position = vec4(position, 0.0, 1.0);
+        }\`;
+
+    function createFragmentShader() {
+        const traceSteps = Math.round(THREE.MathUtils.clamp(params.traceSteps, TRACE_STEPS_MIN, TRACE_STEPS_MAX));
+        const warpSteps = Math.round(THREE.MathUtils.clamp(params.warpSteps, WARP_STEPS_MIN, WARP_STEPS_MAX));
+
+        return \`
+            precision highp float;
+            precision highp int;
+            #define TRACE_STEPS \${traceSteps}
+            #define WARP_STEPS \${warpSteps}
+
+            uniform vec2 uResolution;
+            uniform float uAnimationTime;
+            uniform float uInitialDepth;
+            uniform float uBaseStep;
+            uniform float uDepthTarget;
+            uniform float uDepthBlend;
+            uniform float uInverseStepDivisor;
+            uniform float uWarpSpatialScale;
+            uniform float uWarpAmplitude;
+            uniform float uWarpTurnSmoothing;
+            uniform float uFieldSmoothness;
+            uniform float uColorFrequency;
+            uniform float uInverseExposure;
+            uniform vec3 uFractalColor;
+            uniform vec3 uBackgroundColor;
+
+            out vec4 outputColor;
+
+            vec3 safeNormalize(vec3 value) {
+                return value * inversesqrt(max(dot(value, value), 1e-8));
+            }
+
+            float smoothAbsolute(float value, float radius) {
+                return sqrt(value * value + radius * radius);
+            }
+
+            vec3 createViewRay(vec2 fragCoord) {
+                vec2 uv = (fragCoord * 2.0 - uResolution) / max(uResolution.y, 1.0);
+                return safeNormalize(vec3(-uv, 1.0));
+            }
+
+            vec3 evaluateFractalWarp(vec3 position) {
+                float frequency = 3.4;
+                for (int warpIndex = 0; warpIndex < WARP_STEPS; ++warpIndex) {
+                    frequency *= 0.625;
+                    float spatialFrequency = frequency * uWarpSpatialScale;
+                    float phaseOffset = frequency + uAnimationTime;
+                    vec3 phase = position * spatialFrequency + phaseOffset;
+                    float inverseFrequency = 1.0 / max(frequency, 1e-4);
+                    vec3 displacement = sin(phase) * (uWarpAmplitude * inverseFrequency);
+                    position = mix(position.zxy, position, uWarpTurnSmoothing) + displacement;
+                }
+                return position;
+            }
+
+            float calculateRayStep(float rayDepth, float warpedDepth) {
+                float mixedDepth = mix(rayDepth, warpedDepth, uDepthBlend);
+                float fieldDifference = smoothAbsolute(uDepthTarget - mixedDepth, uFieldSmoothness);
+                return uBaseStep + fieldDifference * uInverseStepDivisor;
+            }
+
+            void main() {
+                vec3 rayDirection = createViewRay(gl_FragCoord.xy);
+                float rayDepth = uInitialDepth;
+                vec3 accumulatedLight = vec3(0.0);
+                const vec3 channelOffsets = vec3(0.0, 1.0, 2.0);
+
+                for (int traceIndex = 0; traceIndex < TRACE_STEPS; ++traceIndex) {
+                    vec3 rayPosition = rayDirection * rayDepth;
+                    vec3 warpedPosition = evaluateFractalWarp(rayPosition);
+                    float rayStep = calculateRayStep(rayDepth, warpedPosition.z);
+                    rayDepth += rayStep;
+                    float colorPhase = rayDepth + float(traceIndex) * uColorFrequency;
+                    vec3 chromaticLight = sin(colorPhase + channelOffsets) + 1.0;
+                    accumulatedLight += chromaticLight / max(rayStep, 1e-6);
+                }
+
+                vec3 originalFractalColor = tanh(accumulatedLight * uInverseExposure);
+                vec3 tintedFractalColor = originalFractalColor * uFractalColor;
+                float fractalMask = clamp(max(tintedFractalColor.r, max(tintedFractalColor.g, tintedFractalColor.b)), 0.0, 1.0);
+                vec3 finalColor = uBackgroundColor + tintedFractalColor * fractalMask;
+                outputColor = vec4(max(finalColor, vec3(0.0)), 1.0);
+            }\`;
+    }
+
+    const renderer = new THREE.WebGLRenderer({
+        antialias: false,
+        alpha: false,
+        depth: false,
+        stencil: false,
+        powerPreference: "high-performance"
+    });
+
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.setClearColor(params.backgroundColor, 1);
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.Camera();
+
+    const uniforms = {
+        uResolution: { value: new THREE.Vector2() },
+        uAnimationTime: { value: 0 },
+        uInitialDepth: { value: params.initialDepth },
+        uBaseStep: { value: params.baseStep },
+        uDepthTarget: { value: params.depthTarget },
+        uDepthBlend: { value: params.depthBlend },
+        uInverseStepDivisor: { value: 1 / params.stepDivisor },
+        uWarpSpatialScale: { value: params.warpSpatialScale },
+        uWarpAmplitude: { value: params.warpAmplitude },
+        uWarpTurnSmoothing: { value: params.warpTurnSmoothing },
+        uFieldSmoothness: { value: params.fieldSmoothness },
+        uColorFrequency: { value: params.colorFrequency },
+        uInverseExposure: { value: 1 / params.exposure },
+        uFractalColor: { value: new THREE.Color(params.fractalColor) },
+        uBackgroundColor: { value: new THREE.Color(params.backgroundColor) }
+    };
+
+    function createShaderMaterial() {
+        return new THREE.RawShaderMaterial({
+            uniforms,
+            vertexShader,
+            fragmentShader: createFragmentShader(),
+            glslVersion: THREE.GLSL3,
+            depthTest: false,
+            depthWrite: false,
+            transparent: false,
+            toneMapped: false
+        });
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array([0, 0, 0, 0, 0, 0, 0, 0, 0]), 3));
+    
+    const fullscreenTriangle = new THREE.Mesh(geometry, createShaderMaterial());
+    fullscreenTriangle.frustumCulled = false;
+    scene.add(fullscreenTriangle);
+
+    function rebuildShader() {
+        const previousMaterial = fullscreenTriangle.material;
+        fullscreenTriangle.material = createShaderMaterial();
+        previousMaterial.dispose();
+        requestRender();
+    }
+
+    const clock = new THREE.Clock();
+    let elapsedTime = 0;
+    let forceRender = true;
+    let isInViewport = true;
+    let isDocumentVisible = !document.hidden;
+
+    function requestRender() { forceRender = true; }
+
+    function resetAnimationTime() {
+        elapsedTime = 0;
+        uniforms.uAnimationTime.value = 0;
+        clock.getDelta();
+        requestRender();
+    }
+
+    let viewportWidth = 0;
+    let viewportHeight = 0;
+    let currentDpr = 0;
+
+    function updateResolution() {
+        const width = Math.max(window.innerWidth, 1);
+        const height = Math.max(window.innerHeight, 1);
+        const nextDpr = Number(params.dpr);
+
+        if (width !== viewportWidth || height !== viewportHeight || nextDpr !== currentDpr) {
+            viewportWidth = width;
+            viewportHeight = height;
+            currentDpr = nextDpr;
+            renderer.setPixelRatio(nextDpr);
+            renderer.setSize(width, height, false);
+            renderer.getDrawingBufferSize(uniforms.uResolution.value);
+        }
+        requestRender();
+    }
+
+    function handleResize() { updateResolution(); }
+    window.addEventListener("resize", handleResize, { passive: true });
+    updateResolution();
+
+    const intersectionObserver = new IntersectionObserver((entries) => {
+        const entry = entries[0];
+        isInViewport = entry.isIntersecting && entry.intersectionRatio > 0;
+        if (isInViewport) { clock.getDelta(); requestRender(); }
+    }, { threshold: 0 });
+
+    intersectionObserver.observe(renderer.domElement);
+
+    function handleVisibilityChange() {
+        isDocumentVisible = !document.hidden;
+        clock.getDelta();
+        if (isDocumentVisible) requestRender();
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    function applyPreset(presetName) {
+        const preset = presets[presetName];
+        if (!preset) return;
+
+        const previousTraceSteps = params.traceSteps;
+        const previousWarpSteps = params.warpSteps;
+
+        for (const [key, value] of Object.entries(preset)) {
+            params[key] = value;
+        }
+
+        params.preset = presetName;
+
+        uniforms.uInitialDepth.value = params.initialDepth;
+        uniforms.uBaseStep.value = params.baseStep;
+        uniforms.uDepthTarget.value = params.depthTarget;
+        uniforms.uDepthBlend.value = params.depthBlend;
+        uniforms.uInverseStepDivisor.value = 1 / Math.max(params.stepDivisor, 1e-6);
+        uniforms.uWarpSpatialScale.value = params.warpSpatialScale;
+        uniforms.uWarpAmplitude.value = params.warpAmplitude;
+        uniforms.uWarpTurnSmoothing.value = params.warpTurnSmoothing;
+        uniforms.uFieldSmoothness.value = params.fieldSmoothness;
+        uniforms.uColorFrequency.value = params.colorFrequency;
+        uniforms.uInverseExposure.value = 1 / Math.max(params.exposure, 1);
+        uniforms.uFractalColor.value.set(params.fractalColor);
+        uniforms.uBackgroundColor.value.set(params.backgroundColor);
+
+        renderer.setClearColor(params.backgroundColor, 1);
+        document.body.style.backgroundColor = params.backgroundColor;
+
+        updateResolution();
+
+        if (previousTraceSteps !== params.traceSteps || previousWarpSteps !== params.warpSteps) {
+            rebuildShader();
+        } else {
+            requestRender();
+        }
+
+        clock.getDelta();
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        if (!isDocumentVisible || !isInViewport) {
+            clock.getDelta();
+            return;
+        }
+
+        const isAnimated = !params.pause && params.timeSpeed > 0;
+
+        if (!isAnimated && !forceRender) {
+            clock.getDelta();
+            return;
+        }
+
+        const deltaTime = Math.min(clock.getDelta(), 1 / 30);
+
+        if (isAnimated) {
+            elapsedTime += deltaTime;
+            uniforms.uAnimationTime.value = elapsedTime * params.timeSpeed;
+        }
+
+        renderer.render(scene, camera);
+        forceRender = false;
+    }
+
+    animate();
+
+    function dispose() {
+        window.removeEventListener("resize", handleResize);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        intersectionObserver.disconnect();
+        geometry.dispose();
+        fullscreenTriangle.material.dispose();
+        renderer.dispose();
+    }
+
+    window.addEventListener("beforeunload", dispose, { once: true });
+</script>
+</body>
+</html>
+`,
+    metadata: [
+        { label: "Technique", value: "Raymarching Volumétrique" },
+        { label: "Moteur", value: "Three.js WebGL" },
+        { label: "Rendu", value: "Dispersion Chromatique" }
     ]
   },
   {
@@ -2188,7 +3274,123 @@ function windowResized() {
         { label: "Effet", value: "Cosmic Glow" },
         { label: "Source", value: "Shader Atlas 60" }
     ]
+  },
+  {
+    id: "algo-0x11",
+    title: "ALGO 0x11",
+    subTitle: "Tsubuyaki GLSL - Warp Tunnel",
+    description: "Un shader GLSL ultra-compact issu de #つぶやきGLSL. Il construit un tunnel fractal torsadé en raymarching avec pliage spatial récursif, interférences cosinus multi-octaves et cartographie de ton hyperbolique (tanh).",
+    equation: "q_{n+1} = q_n + \\sum_{s} \\frac{\\cos(s \\cdot q_n^{\\text{zxy}} + t)}{s}, \\quad o = \\tanh\\left(\\frac{\\sum \\frac{0.65}{d}}{1800}\\right)",
+    type: "WEBGL GLSL",
+    code: `for(float i=0.,z=0.,d=0.,s=0.;i++<2e2;){
+    vec3 q=z*normalize(vec3(FC.xy*2.-r,r.y))+sin(t*.5)*5.;
+    q.zx=abs(q.zx);
+    q.xy*=rotate2D(q.z*.01);
+    for(s=.5;s<9e2;s/=.5)q+=cos(q.zxy*s+t)/s;
+    z+=d=.011+abs((length(q.yx)-15.))/5.;
+    o+=.65/d;
+}
+o=tanh(o/1.8e3);`,
+    htmlContent: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tsubuyaki GLSL - Warp Tunnel</title>
+  <style>
+    body { margin: 0; background-color: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; min-height: 100vh; touch-action: none; }
+    canvas { width: 100vmin !important; height: 100vmin !important; object-fit: contain; box-shadow: 0 0 30px rgba(0,0,0,0.9); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <script>
+    const canvas = document.getElementById('c');
+    const gl = canvas.getContext('webgl2');
+    
+    const prog = gl.createProgram();
+    const vs = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vs, '#version 300 es\\nin vec4 position; void main() { gl_Position = position; }');
+    gl.compileShader(vs); 
+    gl.attachShader(prog, vs);
+
+    const fs = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fs, \`#version 300 es
+precision highp float;
+out vec4 o; 
+uniform float t; 
+uniform vec2 r; 
+#define FC gl_FragCoord
+
+mat2 rotate2D(float angle) {
+    float c = cos(angle), s = sin(angle);
+    return mat2(c, -s, s, c);
+}
+
+void main() {
+    o = vec4(0.0);
+    float i = 0.0, z = 0.0, d = 0.0, s = 0.0;
+    for(i = 0.0; i < 200.0; i += 1.0) {
+        vec3 q = z * normalize(vec3(FC.xy * 2.0 - r, r.y)) + sin(t * 0.5) * 5.0;
+        q.zx = abs(q.zx);
+        q.xy *= rotate2D(q.z * 0.01);
+        for(s = 0.5; s < 900.0; s /= 0.5) {
+            q += cos(q.zxy * s + t) / s;
+        }
+        d = 0.011 + abs(length(q.yx) - 15.0) / 5.0;
+        z += d;
+        o += vec4(0.65 / d);
+    }
+    o = tanh(o / 1800.0);
+    o.a = 1.0;
+}\`);
+
+    gl.compileShader(fs);
+    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+        console.error("Shader FS Error: ", gl.getShaderInfoLog(fs));
+    }
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog); 
+    gl.useProgram(prog);
+    
+    const locTime = gl.getUniformLocation(prog, 't');
+    const locRes = gl.getUniformLocation(prog, 'r');
+    
+    const geo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, geo);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    const locPos = gl.getAttribLocation(prog, 'position');
+    gl.enableVertexAttribArray(locPos);
+    gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
+    
+    function resize() {
+      const size = Math.min(window.innerWidth, window.innerHeight);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(size * dpr);
+      canvas.height = Math.floor(size * dpr);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    let start = performance.now();
+    function draw(now) {
+      gl.uniform1f(locTime, (now - start) * 0.001);
+      gl.uniform2f(locRes, canvas.width, canvas.height);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>`,
+    metadata: [
+        { label: "Format", value: "#つぶやきGLSL" },
+        { label: "Rendu", value: "Raymarching 200 Iterations" },
+        { label: "Effet", value: "Hyperbolic Tunnel" },
+        { label: "Tone Map", value: "tanh Compression" }
+    ]
   }
+
 ];
 
 const getProcessedHtmlContent = (html: string, isLowSpec: boolean) => {
