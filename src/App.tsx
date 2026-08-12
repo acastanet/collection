@@ -3389,6 +3389,733 @@ void main() {
         { label: "Effet", value: "Hyperbolic Tunnel" },
         { label: "Tone Map", value: "tanh Compression" }
     ]
+  },
+  {
+    id: "algo-0x12",
+    title: "ALGO 0x12",
+    subTitle: "Tsubuyaki GLSL - Recursive Fold",
+    description: "Un shader GLSL minimaliste issu de #つぶやきGLSL. Il génère une structure fractale tridimensionnelle en combinant des pliages spatiaux itératifs (abs fold), des rotations 3D modulées dans le temps, et un rendu volumétrique par accumulation exponentielle des distances.",
+    equation: "p_{k+1} = |2 \\cdot p_k \\cdot R_3(t, \\vec{u})| - 1, \\quad o = \\sum_{i=0}^{100} \\frac{e^{-e \\cdot 10^6}}{70}",
+    type: "WEBGL GLSL",
+    code: `for(float i,e,g;i++<1e2;){
+    vec3 p=vec3((FC.xy-r*.5)/r.y*g,g-3.+sin(t*.5));
+    p.zy*=rotate2D(t*.5);
+    for(int j;j++<6;)
+        p*=rotate3D(t+.5,vec3(5,2.*smoothstep(-8.,8.,0.),4)),
+        p=abs(p+p)-1.;
+    g+=e=(length(p.yzx)*5.-6.)/9e2;
+    o+=exp(-e*1e6)/7e1;
+}`,
+    htmlContent: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tsubuyaki GLSL - Recursive Fold</title>
+  <style>
+    body { margin: 0; background-color: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; min-height: 100vh; touch-action: none; }
+    canvas { width: 100vmin !important; height: 100vmin !important; object-fit: contain; box-shadow: 0 0 30px rgba(0,0,0,0.9); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <script>
+    const canvas = document.getElementById('c');
+    const gl = canvas.getContext('webgl2');
+    
+    const prog = gl.createProgram();
+    const vs = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vs, '#version 300 es\\nin vec4 position; void main() { gl_Position = position; }');
+    gl.compileShader(vs); 
+    gl.attachShader(prog, vs);
+
+    const fs = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fs, \`#version 300 es
+precision highp float;
+out vec4 o; 
+uniform float t; 
+uniform vec2 r; 
+#define FC gl_FragCoord
+
+mat2 rotate2D(float angle) {
+    float c = cos(angle), s = sin(angle);
+    return mat2(c, -s, s, c);
+}
+
+mat3 rotate3D(float angle, vec3 axis) {
+    vec3 a = normalize(axis);
+    float s = sin(angle);
+    float c = cos(angle);
+    float oc = 1.0 - c;
+    return mat3(
+        oc * a.x * a.x + c,        oc * a.x * a.y - a.z * s,  oc * a.z * a.x + a.y * s,
+        oc * a.x * a.y + a.z * s,  oc * a.y * a.y + c,        oc * a.y * a.z - a.x * s,
+        oc * a.z * a.x - a.y * s,  oc * a.y * a.z + a.x * s,  oc * a.z * a.z + c
+    );
+}
+
+void main() {
+    o = vec4(0.0);
+    float i = 0.0, e = 0.0, g = 0.0;
+    for(i = 0.0; i < 100.0; i += 1.0) {
+        vec3 p = vec3((FC.xy - r * 0.5) / r.y * g, g - 3.0 + sin(t * 0.5));
+        p.zy *= rotate2D(t * 0.5);
+        for(int j = 0; j < 6; j++) {
+            p *= rotate3D(t + 0.5, vec3(5.0, 2.0 * smoothstep(-8.0, 8.0, 0.0), 4.0));
+            p = abs(p + p) - 1.0;
+        }
+        e = (length(p.yzx) * 5.0 - 6.0) / 900.0;
+        g += e;
+        o += vec4(exp(-e * 1000000.0) / 70.0);
+    }
+    o.a = 1.0;
+}\`);
+
+    gl.compileShader(fs);
+    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+        console.error("Shader FS Error: ", gl.getShaderInfoLog(fs));
+    }
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog); 
+    gl.useProgram(prog);
+    
+    const locTime = gl.getUniformLocation(prog, 't');
+    const locRes = gl.getUniformLocation(prog, 'r');
+    
+    const geo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, geo);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    const locPos = gl.getAttribLocation(prog, 'position');
+    gl.enableVertexAttribArray(locPos);
+    gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
+    
+    function resize() {
+      const size = Math.min(window.innerWidth, window.innerHeight);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(size * dpr);
+      canvas.height = Math.floor(size * dpr);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    let start = performance.now();
+    function draw(now) {
+      gl.uniform1f(locTime, (now - start) * 0.001);
+      gl.uniform2f(locRes, canvas.width, canvas.height);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>`,
+    metadata: [
+        { label: "Format", value: "#つぶやきGLSL" },
+        { label: "Pliage", value: "6 Iterations Abs Fold" },
+        { label: "Rendu", value: "Accumulation Exponentielle" },
+        { label: "Géométrie", value: "3D Rotated Lattice" }
+    ]
+  },
+  {
+    id: "algo-0x13",
+    title: "ALGO 0x13",
+    subTitle: "Dancing with Friends & Enemies",
+    description: "Simulation d'intelligence en essaim découverte par Simon Woods (Wolfram Community 122095) Simulation d'intelligence en essaim découverte par Simon Woods (Wolfram Community 122095) avec bascule en 1 clic entre Points Blancs (Wolfram pur 2D) et Boules Blanches 3D nacrées (style ALGO 0x12). 1000 danseurs évoluent selon trois forces fondamentales : contraction centripète (0.995 * x), attraction vers un ami (+0.02 * f[p]) et répulsion d'un ennemi (-0.01 * f[q]).",
+    equation: "x(t+1) = 0.995 \, x(t) + 0.02 \, \frac{x_{p(i)} - x_i}{0.01 + \|x_{p(i)} - x_i\|} - 0.01 \, \frac{x_{q(i)} - x_i}{0.01 + \|x_{q(i)} - x_i\|}",
+    type: "SWARM INTELLIGENCE",
+    code: `n = 1000;
+r := RandomInteger[{1, n}];
+f := (#/(.01 + Sqrt[#.#])) & /@ (x[[#]] - x) &;
+s := With[{r1 = r}, p[[r1]] = r; q[[r1]] = r];
+x = RandomReal[{-1, 1}, {n, 2}];
+{p, q} = RandomInteger[{1, n}, {2, n}];
+Graphics[{PointSize[0.007], Dynamic[If[r < 100, s];
+Point[x = 0.995 x + 0.02 f[p] - 0.01 f[q]]]}, PlotRange -> 2]`,
+    htmlContent: `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Simon Woods - Swarm 1000 Boules & Points (ALGO 0x13)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      color: #ffffff;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100vmin;
+      height: 100vmin;
+      object-fit: contain;
+      cursor: crosshair;
+      border-radius: 4px;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.95);
+    }
+    
+    /* En-tête minimaliste et ultra discret */
+    #hud {
+      position: absolute;
+      top: 14px;
+      left: 16px;
+      font-size: 10.5px;
+      letter-spacing: 0.04em;
+      color: rgba(255, 255, 255, 0.35);
+      pointer-events: none;
+      z-index: 10;
+      transition: opacity 0.3s ease;
+      line-height: 1.4;
+    }
+    #hud:hover {
+      opacity: 0.85;
+    }
+    #hud .title {
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 11px;
+    }
+    #hud .sub {
+      font-size: 9px;
+      color: rgba(200, 210, 225, 0.5);
+      font-family: monospace;
+    }
+
+    /* Commandes discrètes : Floating Glass Dock semi-transparent */
+    #dock-container {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      opacity: 0.3;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+    #dock-container:hover, #dock-container:focus-within {
+      opacity: 0.95;
+      transform: translateX(-50%) translateY(-2px);
+    }
+    #dock {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(15, 17, 23, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 4px 8px;
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    }
+    .btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: rgba(255, 255, 255, 0.65);
+      padding: 3px 7px;
+      border-radius: 12px;
+      font-size: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+    }
+    .btn.active {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+      font-weight: 500;
+    }
+    .divider {
+      width: 1px;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.12);
+      margin: 0 2px;
+    }
+    
+    #legend {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.35);
+      pointer-events: none;
+      z-index: 10;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div class="title">Simon Woods &bull; Swarm 1000 Danseurs</div>
+    <div class="sub">x = 0.995*x + 0.02*f[p] - 0.01*f[q]</div>
+  </div>
+
+  <div id="legend">
+    <span style="color:#10b981;">&#9679; Ami</span> &nbsp;
+    <span style="color:#f43f5e;">&#9679; Ennemi</span>
+  </div>
+
+  <!-- Commandes discrètes flottantes -->
+  <div id="dock-container">
+    <div id="dock">
+      <button id="btnPlay" class="btn active">&#10074;&#10074; Pause</button>
+      <button id="btnReset" class="btn">&#8635; Reset</button>
+      <div class="divider"></div>
+      <button id="btnStyle" class="btn">&#9898; Boules Blanches 3D</button>
+      <button id="btnSize" class="btn">&#9899; Petite (3.8px)</button>
+      <button id="btnSpeed" class="btn">&#9654; 1x</button>
+      <button id="btnTrails" class="btn active">&#8767; Traînée</button>
+    </div>
+  </div>
+
+  <canvas id="c"></canvas>
+
+  <script>
+    var canvas = document.getElementById('c');
+    var ctx = canvas.getContext('2d');
+
+    var btnPlay = document.getElementById('btnPlay');
+    var btnReset = document.getElementById('btnReset');
+    var btnStyle = document.getElementById('btnStyle');
+    var btnSize = document.getElementById('btnSize');
+    var btnSpeed = document.getElementById('btnSpeed');
+    var btnTrails = document.getElementById('btnTrails');
+
+    var N = 1000;
+    var x = new Float32Array(N);
+    var y = new Float32Array(N);
+    var nextX = new Float32Array(N);
+    var nextY = new Float32Array(N);
+    var p = new Int32Array(N);
+    var q = new Int32Array(N);
+
+    var isRunning = true;
+    var speedSteps = 1;
+    var useTrails = true;
+
+    // Options de tailles (du point fin au gros globe)
+    var sizes = [1.8, 2.6, 3.8, 5.5, 8.0];
+    var sizeNames = ['Point Fin (1.8px)', 'Très Petite (2.6px)', 'Petite (3.8px)', 'Moyenne (5.5px)', 'Grande (8.0px)'];
+    var sizeIdx = 2; // 3.8px par défaut
+
+    // Options de styles incluant les points blancs purs 2D et les boules 3D
+    var styles = [
+      { id: 'spheres-white', name: 'Boules Blanches 3D', icon: '&#9898;' },
+      { id: 'points-white',  name: 'Points Blancs (Wolfram)', icon: '&#9679;' },
+      { id: 'spheres-silver', name: 'Nacre Argentée 3D', icon: '&#10022;' },
+      { id: 'spheres-cyan',  name: 'Cyan Givré 3D', icon: '&#9670;' },
+      { id: 'spheres-amber', name: 'Ambre Doré 3D', icon: '&#9670;' },
+      { id: 'spheres-chiral', name: 'Spectre Chiral 3D', icon: '&#10042;' }
+    ];
+    var styleIdx = 0; // Boules Blanches 3D par défaut
+
+    var width = 600, height = 600, cx = 300, cy = 300, dpr = 1, scale = 140;
+    var sphereSprites = [];
+
+    function buildSprites() {
+      sphereSprites = [];
+      var curStyle = styles[styleIdx];
+      var baseR = sizes[sizeIdx] * dpr;
+
+      // Mode Point Blanc pur (2D Wolfram Mathematica)
+      if (curStyle.id === 'points-white') {
+        var pSize = Math.max(8, Math.ceil(baseR * 2.4));
+        var pHalf = pSize / 2;
+        var pOff = document.createElement('canvas');
+        pOff.width = pSize;
+        pOff.height = pSize;
+        var poctx = pOff.getContext('2d');
+
+        poctx.fillStyle = '#ffffff';
+        poctx.beginPath();
+        poctx.arc(pHalf, pHalf, baseR, 0, Math.PI * 2);
+        poctx.fill();
+
+        sphereSprites.push({
+          canvas: pOff,
+          size: pSize,
+          offset: pHalf
+        });
+        return;
+      }
+
+      // Modes 3D Sphères volumétriques
+      var spriteSize = Math.max(16, Math.ceil(baseR * 2.8));
+      var half = spriteSize / 2;
+
+      var numVariants = (curStyle.id === 'spheres-chiral') ? 36 : 1;
+      for (var k = 0; k < numVariants; k++) {
+        var off = document.createElement('canvas');
+        off.width = spriteSize;
+        off.height = spriteSize;
+        var octx = off.getContext('2d');
+
+        var hue = Math.floor((k / numVariants) * 360);
+
+        var r = baseR;
+        var lx = half - r * 0.35;
+        var ly = half - r * 0.35;
+
+        // 1. Ombre de contact / Occlusion ambiante extérieure (très subtile)
+        var shadowGrad = octx.createRadialGradient(half, half, r * 0.7, half, half, r + 0.6 * dpr);
+        shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        shadowGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.4)');
+        shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0.9)');
+        octx.fillStyle = shadowGrad;
+        octx.beginPath();
+        octx.arc(half, half, r + 0.6 * dpr, 0, Math.PI * 2);
+        octx.fill();
+
+        // 2. Corps volumétrique 3D de la boule (Rendu 0x12 en niveaux de gris/nacre)
+        var sphereGrad = octx.createRadialGradient(lx, ly, r * 0.05, half, half, r);
+
+        if (curStyle.id === 'spheres-white') {
+          // Nacre Blanche ALGO 0x12 : Pure monochrome blanc, gris perle, ombre graphite et contour noir
+          sphereGrad.addColorStop(0.00, '#ffffff');
+          sphereGrad.addColorStop(0.20, '#ffffff');
+          sphereGrad.addColorStop(0.48, 'rgba(235, 238, 242, 1)');
+          sphereGrad.addColorStop(0.72, 'rgba(160, 168, 180, 1)');
+          sphereGrad.addColorStop(0.88, 'rgba(65, 72, 85, 1)');
+          sphereGrad.addColorStop(0.97, 'rgba(20, 24, 30, 1)');
+          sphereGrad.addColorStop(1.00, 'rgba(0, 0, 0, 1)');
+        } else if (curStyle.id === 'spheres-silver') {
+          // Nacre Argentée
+          sphereGrad.addColorStop(0.00, '#ffffff');
+          sphereGrad.addColorStop(0.25, '#f8fafc');
+          sphereGrad.addColorStop(0.55, 'rgba(203, 213, 225, 1)');
+          sphereGrad.addColorStop(0.80, 'rgba(100, 116, 139, 1)');
+          sphereGrad.addColorStop(0.95, 'rgba(30, 41, 59, 1)');
+          sphereGrad.addColorStop(1.00, 'rgba(0, 0, 0, 1)');
+        } else if (curStyle.id === 'spheres-cyan') {
+          // Cyan Givré
+          sphereGrad.addColorStop(0.00, '#ffffff');
+          sphereGrad.addColorStop(0.20, 'rgba(224, 242, 254, 1)');
+          sphereGrad.addColorStop(0.55, 'rgba(56, 189, 248, 1)');
+          sphereGrad.addColorStop(0.82, 'rgba(3, 105, 161, 1)');
+          sphereGrad.addColorStop(0.96, 'rgba(8, 47, 73, 1)');
+          sphereGrad.addColorStop(1.00, 'rgba(0, 0, 0, 1)');
+        } else if (curStyle.id === 'spheres-amber') {
+          // Ambre Doré
+          sphereGrad.addColorStop(0.00, '#ffffff');
+          sphereGrad.addColorStop(0.20, 'rgba(254, 243, 199, 1)');
+          sphereGrad.addColorStop(0.55, 'rgba(245, 158, 11, 1)');
+          sphereGrad.addColorStop(0.82, 'rgba(180, 83, 9, 1)');
+          sphereGrad.addColorStop(0.96, 'rgba(69, 26, 3, 1)');
+          sphereGrad.addColorStop(1.00, 'rgba(0, 0, 0, 1)');
+        } else {
+          // Spectre Chiral
+          sphereGrad.addColorStop(0.00, '#ffffff');
+          sphereGrad.addColorStop(0.25, 'hsla(' + hue + ', 95%, 90%, 1)');
+          sphereGrad.addColorStop(0.55, 'hsla(' + hue + ', 90%, 65%, 1)');
+          sphereGrad.addColorStop(0.82, 'hsla(' + hue + ', 95%, 35%, 1)');
+          sphereGrad.addColorStop(0.96, 'hsla(' + hue + ', 100%, 15%, 1)');
+          sphereGrad.addColorStop(1.00, 'rgba(0, 0, 0, 1)');
+        }
+
+        octx.fillStyle = sphereGrad;
+        octx.beginPath();
+        octx.arc(half, half, r, 0, Math.PI * 2);
+        octx.fill();
+
+        // 3. Point spéculaire 3D éclatant (brillance marbre / perle lisse)
+        var specGrad = octx.createRadialGradient(lx, ly, 0, lx, ly, r * 0.35);
+        specGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+        specGrad.addColorStop(0.4, 'rgba(255, 255, 255, 0.55)');
+        specGrad.addColorStop(0.8, 'rgba(255, 255, 255, 0.1)');
+        specGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
+
+        octx.fillStyle = specGrad;
+        octx.beginPath();
+        octx.arc(lx, ly, r * 0.35, 0, Math.PI * 2);
+        octx.fill();
+
+        sphereSprites.push({
+          canvas: off,
+          size: spriteSize,
+          offset: half
+        });
+      }
+    }
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var w = window.innerWidth || 600;
+      var h = window.innerHeight || 600;
+      var size = Math.min(w, h);
+      if (size <= 0) size = 600;
+
+      width = canvas.width = Math.floor(size * dpr);
+      height = canvas.height = Math.floor(size * dpr);
+      cx = width / 2;
+      cy = height / 2;
+      scale = width * 0.23;
+
+      buildSprites();
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    function initPoints() {
+      for (var i = 0; i < N; i++) {
+        x[i] = Math.random() * 2 - 1;
+        y[i] = Math.random() * 2 - 1;
+        p[i] = Math.floor(Math.random() * N);
+        q[i] = Math.floor(Math.random() * N);
+      }
+    }
+
+    initPoints();
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Contrôles
+    btnPlay.onclick = function() {
+      isRunning = !isRunning;
+      btnPlay.innerHTML = isRunning ? '&#10074;&#10074; Pause' : '&#9654; Reprendre';
+      btnPlay.classList.toggle('active', isRunning);
+    };
+
+    btnReset.onclick = function() {
+      initPoints();
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, width, height);
+    };
+
+    btnStyle.onclick = function() {
+      styleIdx = (styleIdx + 1) % styles.length;
+      btnStyle.innerHTML = styles[styleIdx].icon + ' ' + styles[styleIdx].name;
+      buildSprites();
+    };
+
+    btnSize.onclick = function() {
+      sizeIdx = (sizeIdx + 1) % sizes.length;
+      btnSize.innerHTML = '&#9899; ' + sizeNames[sizeIdx];
+      buildSprites();
+    };
+
+    btnSpeed.onclick = function() {
+      if (speedSteps === 1) speedSteps = 2;
+      else if (speedSteps === 2) speedSteps = 4;
+      else speedSteps = 1;
+      btnSpeed.innerHTML = '&#9654; ' + speedSteps + 'x';
+    };
+
+    btnTrails.onclick = function() {
+      useTrails = !useTrails;
+      btnTrails.classList.toggle('active', useTrails);
+    };
+
+    // Interaction souris
+    var mouseX = -9999, mouseY = -9999, isMouseDown = false, hoveredIdx = -1;
+
+    function getCoords(e) {
+      var rect = canvas.getBoundingClientRect();
+      var sx = canvas.width / rect.width;
+      var sy = canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * sx,
+        y: (e.clientY - rect.top) * sy
+      };
+    }
+
+    window.addEventListener('pointermove', function(e) {
+      var pt = getCoords(e);
+      mouseX = pt.x;
+      mouseY = pt.y;
+    });
+
+    window.addEventListener('pointerdown', function(e) {
+      isMouseDown = true;
+      var pt = getCoords(e);
+      mouseX = pt.x;
+      mouseY = pt.y;
+    });
+
+    window.addEventListener('pointerup', function() { isMouseDown = false; });
+    window.addEventListener('pointerleave', function() {
+      mouseX = -9999;
+      mouseY = -9999;
+      hoveredIdx = -1;
+      isMouseDown = false;
+    });
+
+    // PHYSIQUE EXACTE MATHEMATICA SIMON WOODS
+    function step() {
+      // If[r < 100, s]
+      if (Math.random() < 0.1) {
+        var r1 = Math.floor(Math.random() * N);
+        p[r1] = Math.floor(Math.random() * N);
+        q[r1] = Math.floor(Math.random() * N);
+      }
+
+      // x = 0.995 x + 0.02 f[p] - 0.01 f[q]
+      for (var i = 0; i < N; i++) {
+        var pf = p[i];
+        var qe = q[i];
+
+        var dfx = x[pf] - x[i];
+        var dfy = y[pf] - y[i];
+        var norm_f = Math.sqrt(dfx * dfx + dfy * dfy) + 0.01;
+
+        var dqx = x[qe] - x[i];
+        var dqy = y[qe] - y[i];
+        var norm_q = Math.sqrt(dqx * dqx + dqy * dqy) + 0.01;
+
+        var nx = 0.995 * x[i] + 0.02 * (dfx / norm_f) - 0.01 * (dqx / norm_q);
+        var ny = 0.995 * y[i] + 0.02 * (dfy / norm_f) - 0.01 * (dqy / norm_q);
+
+        // Interaction répulsion
+        if (isMouseDown && mouseX > 0) {
+          var spx = cx + x[i] * scale;
+          var spy = cy + y[i] * scale;
+          var dmx = spx - mouseX;
+          var dmy = spy - mouseY;
+          var distM = Math.sqrt(dmx * dmx + dmy * dmy);
+          if (distM < 160 * dpr && distM > 1) {
+            var push = (1 - distM / (160 * dpr)) * 0.05;
+            nx += (dmx / distM) * push;
+            ny += (dmy / distM) * push;
+          }
+        }
+
+        nextX[i] = nx;
+        nextY[i] = ny;
+      }
+
+      for (var j = 0; j < N; j++) {
+        x[j] = nextX[j];
+        y[j] = nextY[j];
+      }
+    }
+
+    function render() {
+      if (isRunning) {
+        for (var s = 0; s < speedSteps; s++) {
+          step();
+        }
+      }
+
+      // Effacement avec traînée douce
+      ctx.globalCompositeOperation = 'source-over';
+      if (useTrails) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+        ctx.fillRect(0, 0, width, height);
+      } else {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      // Cadre PlotRange discret
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 1 * dpr;
+      ctx.strokeRect(cx - 2 * scale, cy - 2 * scale, 4 * scale, 4 * scale);
+
+      // Danseur inspecté
+      var closestDist = 25 * dpr;
+      var closest = -1;
+      if (mouseX > 0) {
+        for (var i = 0; i < N; i++) {
+          var sx = cx + x[i] * scale;
+          var sy = cy + y[i] * scale;
+          var d = Math.sqrt((sx - mouseX) * (sx - mouseX) + (sy - mouseY) * (sy - mouseY));
+          if (d < closestDist) {
+            closestDist = d;
+            closest = i;
+          }
+        }
+      }
+      hoveredIdx = closest;
+
+      // Dessin des 1000 danseurs (boules 3D ou points blancs 2D)
+      var curStyle = styles[styleIdx];
+      var spriteCount = sphereSprites.length;
+      if (spriteCount > 0) {
+        for (var k = 0; k < N; k++) {
+          var px = cx + x[k] * scale;
+          var py = cy + y[k] * scale;
+
+          var spriteIdx = 0;
+          if (curStyle.id === 'spheres-chiral') {
+            var ang = Math.atan2(y[k], x[k]);
+            var dst = Math.sqrt(x[k] * x[k] + y[k] * y[k]);
+            var hu = ((ang * 180 / Math.PI + 180 + dst * 40) % 360 + 360) % 360;
+            spriteIdx = Math.floor((hu / 360) * spriteCount) % spriteCount;
+          }
+
+          var spr = sphereSprites[spriteIdx % spriteCount];
+          ctx.drawImage(spr.canvas, px - spr.offset, py - spr.offset);
+        }
+      }
+
+      // Visualisation discrète des liens Ami / Ennemi si survolé
+      if (hoveredIdx >= 0) {
+        var idx = hoveredIdx;
+        var pfi = p[idx];
+        var qei = q[idx];
+
+        var sxi = cx + x[idx] * scale;
+        var syi = cy + y[idx] * scale;
+        var sxf = cx + x[pfi] * scale;
+        var syf = cy + y[pfi] * scale;
+        var sxq = cx + x[qei] * scale;
+        var syq = cy + y[qei] * scale;
+
+        // Ami (Vert émeraude fin)
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(sxi, syi);
+        ctx.lineTo(sxf, syf);
+        ctx.stroke();
+
+        // Ennemi (Rose vif fin)
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(sxi, syi);
+        ctx.lineTo(sxq, syq);
+        ctx.stroke();
+
+        var bRad = sizes[sizeIdx] * dpr;
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.beginPath(); ctx.arc(sxi, syi, bRad * 1.5, 0, Math.PI * 2); ctx.stroke();
+
+        ctx.strokeStyle = '#10b981';
+        ctx.beginPath(); ctx.arc(sxf, syf, bRad * 1.3, 0, Math.PI * 2); ctx.stroke();
+
+        ctx.strokeStyle = '#f43f5e';
+        ctx.beginPath(); ctx.arc(sxq, syq, bRad * 1.3, 0, Math.PI * 2); ctx.stroke();
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>`,
+    metadata: [
+        { label: "Rendu", value: "Boules 3D Nacrées (Style 0x12)" },
+        { label: "Source", value: "Simon Woods (Wolfram 122095)" },
+        { label: "Population", value: "1000 Sphères 3D" },
+        { label: "Interface", value: "Commandes Discrètes Flottantes" }
+    ]
   }
 
 ];

@@ -1,6 +1,6 @@
 {
   "name": "Remix: Tsubuyaki Processing Viewer",
-  "description": "A viewer for a compact p5.js art piece (Tsubuyaki Processing).",
+  "description": "Interactive gallery and viewer for algorithmic art, Tsubuyaki GLSL shaders, and swarm intelligence simulations.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
